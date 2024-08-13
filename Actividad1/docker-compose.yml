@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  servidor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - SECRET_KEY=your_secret_key
+
+  cliente:
+    build:
+      context: ./cliente
+      dockerfile: Dockerfile
+    depends_on:
+      - servidor
+    environment:
+      - AUTH_URL=http://servidor:3000/login
+      - SALUDO_URL=http://servidor:3000/saludo
