@@ -5,9 +5,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Cristian",
   "license": "ISC",
-  "description": "",
+  "description": "Taller Docker",
   "dependencies": {
     "dotenv": "^10.0.0",
     "jsonwebtoken": "^8.5.1"
