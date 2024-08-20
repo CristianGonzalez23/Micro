@@ -1,21 +1,24 @@
-version: '3.8'  # Especifica la versión de Docker Compose que se está utilizando.
+version: '3'
+services:
+  auth:
+    build: ./auth
+    ports:
+      - "3001:3001"
+    environment:
+      - SECRET_KEY=tu_clave_secreta_aqui
 
-services:  # Define los servicios que se van a levantar.
-  servidor:  # Nombre del primer servicio.
-    build:  # Instrucciones para construir la imagen de Docker.
-      context: .  # El contexto de construcción es el directorio actual.
-      dockerfile: Dockerfile  # El archivo Dockerfile que se utilizará para construir la imagen.
-    ports:  # Mapea los puertos del contenedor a los puertos del host.
-      - "3000:3000"  # Mapea el puerto 3000 del contenedor al puerto 3000 del host.
-    environment:  # Variables de entorno para el servicio.
-      - SECRET_KEY=your_secret_key  # Define una variable de entorno llamada SECRET_KEY.
+  saludo:
+    build: ./saludo
+    ports:
+      - "3002:3002"
+    environment:
+      - SECRET_KEY=tu_clave_secreta_aqui
 
-  cliente:  # Nombre del segundo servicio.
-    build:  # Instrucciones para construir la imagen de Docker.
-      context: ./cliente  # El contexto de construcción es el directorio ./cliente.
-      dockerfile: Dockerfile  # El archivo Dockerfile que se utilizará para construir la imagen.
-    depends_on:  # Define dependencias entre servicios.
-      - servidor  # Este servicio depende del servicio 'servidor'.
-    environment:  # Variables de entorno para el servicio.
-      - AUTH_URL=http://servidor:3000/login  # Define una variable de entorno llamada AUTH_URL.
-      - SALUDO_URL=http://servidor:3000/saludo  # Define una variable de entorno llamada SALUDO_URL.
+  cliente:
+    build: ./cliente
+    depends_on:
+      - auth
+      - saludo
+    environment:
+      - AUTH_URL=http://auth:3001/login
+      - GREETING_URL=http://saludo:3002/saludo

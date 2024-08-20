@@ -3,4 +3,5 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-CMD ["node", "cliente.js"]
+EXPOSE 3001
+CMD ["node", "auth.js"]
