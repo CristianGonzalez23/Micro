@@ -1,0 +1,15 @@
+{
+  "name": "taller-docker",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Cristian",
+  "license": "ISC",
+  "description": "Taller Docker",
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "jsonwebtoken": "^8.5.1"
+  }
+}
