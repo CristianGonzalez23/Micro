@@ -1,0 +1,224 @@
+openapi: 3.0.0
+info:
+  title: API de Gestión de Usuarios
+  description: API para gestionar usuarios, incluyendo operaciones CRUD, registro, login y recuperación de clave.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+
+paths:
+  /usuarios/registro:
+    post:
+      summary: Registrar un nuevo usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre:
+                  type: string
+                  description: Nombre del usuario
+                email:
+                  type: string
+                  format: email
+                  description: Correo electrónico del usuario
+                clave:
+                  type: string
+                  description: Contraseña del usuario
+              required:
+                - nombre
+                - email
+                - clave
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: Usuario creado exitosamente.
+        '400':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Datos del usuario son inválidos.
+        '409':
+          description: El usuario ya existe
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: El correo electrónico ya está registrado.
+
+  /usuarios/{id}:
+    get:
+      summary: Obtener información de un usuario
+      security:
+        - bearerAuth: []   # Requiere autenticación
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del usuario
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Información del usuario obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  nombre:
+                    type: string
+                  email:
+                    type: string
+                  fechaRegistro:
+                    type: string
+                    format: date-time
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Usuario no encontrado.
+
+    put:
+      summary: Actualizar información de un usuario
+      security:
+        - bearerAuth: []   # Requiere autenticación
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del usuario
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                clave:
+                  type: string
+              required:
+                - nombre
+                - email
+      responses:
+        '200':
+          description: Usuario actualizado exitosamente
+        '400':
+          description: Error de validación
+        '404':
+          description: Usuario no encontrado
+
+    delete:
+      summary: Eliminar un usuario
+      security:
+        - bearerAuth: []   # Requiere autenticación
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del usuario
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Usuario eliminado exitosamente
+        '404':
+          description: Usuario no encontrado
+
+  /auth/login:
+    post:
+      summary: Iniciar sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                clave:
+                  type: string
+              required:
+                - email
+                - clave
+      responses:
+        '200':
+          description: Login exitoso, devuelve token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: Token JWT para autenticación
+        '401':
+          description: Credenciales incorrectas
+        '400':
+          description: Datos incorrectos
+
+  /auth/recuperar-clave:
+    post:
+      summary: Recuperar clave de usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+              required:
+                - email
+      responses:
+        '200':
+          description: Instrucciones enviadas para recuperar la clave
+        '404':
+          description: Correo electrónico no encontrado
+        '400':
+          description: Datos incorrectos
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []  # Aplica seguridad globalmente si es necesario
