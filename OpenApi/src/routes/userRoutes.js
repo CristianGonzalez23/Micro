@@ -13,7 +13,7 @@ const pool = mysql.createPool({ user: process.env.DB_USER, host: process.env.DB_
 
 /**
  * @swagger
- * /api/users/register:
+ * /api/users/:
  *   post:
  *     summary: Registro de un nuevo usuario
  *     description: Registra un nuevo usuario con su nombre, email y clave.
@@ -42,7 +42,7 @@ const pool = mysql.createPool({ user: process.env.DB_USER, host: process.env.DB_
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/register', async (req, res) => {
+router.post('/', async (req, res) => {
   const { nombre, email, clave } = req.body;
 
   // Validar los datos de entrada
