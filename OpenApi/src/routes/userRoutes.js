@@ -37,6 +37,15 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+
+// Middleware para verificar si el cliente está autorizado
+const checkAuthorization = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader) {
+    return res.status(403).json({ message: 'Funcionalidad no disponible para usuarios autorizados' });
+  }
+  next();
+};
 // Swagger documentation for each endpoint is included here
 
 /**
@@ -188,6 +197,8 @@ router.post('/login', async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Usuario encontrado
@@ -202,12 +213,16 @@ router.post('/login', async (req, res) => {
  *                   type: string
  *                 email:
  *                   type: string
+ *       401:
+ *         description: Token no proporcionado
+ *       403:
+ *         description: Token no válido
  *       404:
  *         description: Usuario no encontrado
  *       500:
  *         description: Error interno del servidor
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -337,12 +352,14 @@ router.delete('/', authenticateToken, async (req, res) => {
  *     responses:
  *       200:
  *         description: Enlace de recuperación enviado exitosamente
+ *       403:
+ *         description: Funcionalidad no disponible para usuarios autorizados
  *       404:
  *         description: Usuario no encontrado
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/request-reset-password', async (req, res) => {
+router.post('/request-reset-password', checkAuthorization, async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
@@ -363,8 +380,8 @@ router.post('/request-reset-password', async (req, res) => {
 
     // Envía el correo con el enlace de recuperación
     const mailOptions = {
-      from: 'magali.upton8@ethereal.email',
-      to: email,
+      from: `"cristian 👻" <${process.env.EMAIL_USER}>`,
+      to: `"${user.nombre}" <${email}>`, // Incluye el nombre del usuario antes del email
       subject: 'Recuperación de clave',
       text: `Para restablecer tu clave, haz clic en el siguiente enlace: ${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
     };
@@ -401,12 +418,12 @@ router.post('/request-reset-password', async (req, res) => {
  *     responses:
  *       200:
  *         description: Clave restablecida exitosamente
- *       400:
- *         description: Datos incorrectos
+ *       403:
+ *         description: Funcionalidad no disponible para usuarios autorizados
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', checkAuthorization, async (req, res) => {
   const { token, clave } = req.body;
 
   if (!token || !clave) {

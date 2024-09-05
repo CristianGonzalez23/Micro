@@ -7,7 +7,7 @@ servers:
   - url: http://localhost:3000
 
 paths:
-  /usuarios/registro:
+  /usuarios/:
     post:
       summary: Registrar un nuevo usuario
       requestBody:
@@ -47,27 +47,43 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Datos del usuario son inválidos.
-        '409':
-          description: El usuario ya existe
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: No autenticado
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: El correo electrónico ya está registrado.
+                $ref: '#/components/schemas/UnauthorizedErrorResponse'
+        '403':
+          description: Acceso prohibido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorResponse'
+        '404':
+          description: Recurso no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorResponse'
+        '405':
+          description: Método no permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MethodNotAllowedErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /usuarios/{id}:
     get:
       summary: Obtener información de un usuario
       security:
-        - bearerAuth: []   # Requiere autenticación
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -78,35 +94,47 @@ paths:
       responses:
         '200':
           description: Información del usuario obtenida exitosamente
+       '400':
+          description: Error de validación
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                  nombre:
-                    type: string
-                  email:
-                    type: string
-                  fechaRegistro:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorResponse'
+        '403':
+          description: Acceso prohibido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorResponse'
         '404':
-          description: Usuario no encontrado
+          description: Recurso no encontrado
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Usuario no encontrado.
+                $ref: '#/components/schemas/NotFoundErrorResponse'
+        '405':
+          description: Método no permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MethodNotAllowedErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     put:
       summary: Actualizar información de un usuario
       security:
-        - bearerAuth: []   # Requiere autenticación
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -134,15 +162,47 @@ paths:
       responses:
         '200':
           description: Usuario actualizado exitosamente
-        '400':
+       '400':
           description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorResponse'
+        '403':
+          description: Acceso prohibido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorResponse'
         '404':
-          description: Usuario no encontrado
+          description: Recurso no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorResponse'
+        '405':
+          description: Método no permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MethodNotAllowedErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     delete:
       summary: Eliminar un usuario
       security:
-        - bearerAuth: []   # Requiere autenticación
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -153,8 +213,42 @@ paths:
       responses:
         '204':
           description: Usuario eliminado exitosamente
+       '400':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorResponse'
+        '403':
+          description: Acceso prohibido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorResponse'
         '404':
-          description: Usuario no encontrado
+          description: Recurso no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorResponse'
+        '405':
+          description: Método no permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MethodNotAllowedErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/login:
     post:
@@ -177,18 +271,43 @@ paths:
       responses:
         '200':
           description: Login exitoso, devuelve token
+         
+        '400':
+          description: Error de validación
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    type: string
-                    description: Token JWT para autenticación
+                $ref: '#/components/schemas/ValidationErrorResponse'
         '401':
-          description: Credenciales incorrectas
-        '400':
-          description: Datos incorrectos
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorResponse'
+        '403':
+          description: Acceso prohibido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorResponse'
+        '404':
+          description: Recurso no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorResponse'
+        '405':
+          description: Método no permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MethodNotAllowedErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/recuperar-clave:
     post:
@@ -205,15 +324,84 @@ paths:
                   format: email
               required:
                 - email
-      responses:
+     responses:
         '200':
           description: Instrucciones enviadas para recuperar la clave
-        '404':
-          description: Correo electrónico no encontrado
         '400':
-          description: Datos incorrectos
-
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedErrorResponse'
+        '403':
+          description: Acceso prohibido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenErrorResponse'
+        '404':
+          description: Recurso no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundErrorResponse'
+        '405':
+          description: Método no permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MethodNotAllowedErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Error interno del servidor"
+    ValidationErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Datos del usuario son inválidos."
+    UnauthorizedErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "No autenticado"
+    ForbiddenErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Acceso prohibido"
+    NotFoundErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Recurso no encontrado"
+    MethodNotAllowedErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Método no permitido"
   securitySchemes:
     bearerAuth:
       type: http
@@ -221,4 +409,4 @@ components:
       bearerFormat: JWT
 
 security:
-  - bearerAuth: []  # Aplica seguridad globalmente si es necesario
+  - bearerAuth: []
