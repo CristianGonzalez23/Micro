@@ -7,7 +7,24 @@ const mysql = require('mysql2/promise');
 // Configuración de conexión a la base de datos 
 const pool = mysql.createPool({ user: process.env.DB_USER, host: process.env.DB_HOST, database: process.env.DB_NAME, 
   password: process.env.DB_PASSWORD, port: process.env.DB_PORT, });
-  
+
+// Middleware de autenticación
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Token no proporcionado' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: 'Token no válido' });
+    }
+    req.userId = user.userId;
+    next();
+  });
+};
 
 // Swagger documentation for each endpoint is included here
 
@@ -199,16 +216,12 @@ router.get('/:id', async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/users:
  *   put:
  *     summary: Actualizar usuario
  *     description: Actualiza los datos de un usuario específico.
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
+ *     security:
+ *       - Bearer: []
  *     requestBody:
  *       required: true
  *       content:
@@ -232,9 +245,9 @@ router.get('/:id', async (req, res) => {
  *       500:
  *         description: Error interno del servidor
  */
-router.put('/:id', async (req, res) => {
-  const { id } = req.params;
+router.put('/', authenticateToken, async (req, res) => {
   const { nombre, email, clave } = req.body;
+  const id = req.userId;
 
   if (!nombre || !email || !clave) {
     return res.status(400).json({ message: 'Todos los campos son requeridos' });
@@ -263,16 +276,12 @@ router.put('/:id', async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/users:
  *   delete:
  *     summary: Eliminar usuario
  *     description: Elimina un usuario específico.
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
+ *     security:
+ *       - Bearer: []
  *     responses:
  *       200:
  *         description: Usuario eliminado exitosamente
@@ -281,8 +290,8 @@ router.put('/:id', async (req, res) => {
  *       500:
  *         description: Error interno del servidor
  */
-router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
+router.delete('/', authenticateToken, async (req, res) => {
+  const id = req.userId;
 
   try {
     const result = await pool.query('DELETE FROM usuarios WHERE id = ?', [id]);
@@ -303,6 +312,8 @@ router.delete('/:id', async (req, res) => {
  *   post:
  *     summary: Recuperar clave
  *     description: Envía un enlace de recuperación de clave al email del usuario.
+ *     security:
+ *       - Bearer: []
  *     requestBody:
  *       required: true
  *       content:
@@ -322,7 +333,7 @@ router.delete('/:id', async (req, res) => {
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', authenticateToken, async (req, res) => {
   const { email } = req.body;
 
   if (!email) {

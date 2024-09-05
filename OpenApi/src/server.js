@@ -23,6 +23,21 @@ const swaggerOptions = {
         url: 'http://localhost:3000',
       },
     ],
+    components: {
+      securitySchemes: {
+        Bearer: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'JWT Authorization header using the Bearer scheme. Example: "Bearer 12345abcdef"',
+        },
+      },
+    },
+    security: [
+      {
+        Bearer: [],
+      },
+    ],
   },
   apis: ['./src/routes/*.js'],
 };
