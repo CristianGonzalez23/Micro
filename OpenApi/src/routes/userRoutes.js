@@ -3,10 +3,21 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const argon2 = require('argon2');
 const mysql = require('mysql2/promise');
+const nodemailer = require('nodemailer');
 
 // Configuración de conexión a la base de datos 
 const pool = mysql.createPool({ user: process.env.DB_USER, host: process.env.DB_HOST, database: process.env.DB_NAME, 
   password: process.env.DB_PASSWORD, port: process.env.DB_PORT, });
+
+  // Configuración de nodemailer para enviar correos
+const transporter = nodemailer.createTransport({
+  host: 'smtp.ethereal.email',
+  port: 587,
+  auth: {
+    user: 'magali.upton8@ethereal.email',
+    pass: 'RHf4kZre7rn5R1fzfp'
+  }
+});
 
 // Middleware de autenticación
 const authenticateToken = (req, res, next) => {
@@ -308,12 +319,10 @@ router.delete('/', authenticateToken, async (req, res) => {
 
 /**
  * @swagger
- * /api/users/reset-password:
+ * /api/users/request-reset-password:
  *   post:
- *     summary: Recuperar clave
+ *     summary: Solicitar recuperación de clave
  *     description: Envía un enlace de recuperación de clave al email del usuario.
- *     security:
- *       - Bearer: []
  *     requestBody:
  *       required: true
  *       content:
@@ -333,7 +342,7 @@ router.delete('/', authenticateToken, async (req, res) => {
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/reset-password', authenticateToken, async (req, res) => {
+router.post('/request-reset-password', async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
@@ -349,11 +358,75 @@ router.post('/reset-password', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    // Aquí deberías implementar la lógica para enviar un enlace de recuperación de clave al usuario
+    // Genera un token de recuperación
+    const resetToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Envía el correo con el enlace de recuperación
+    const mailOptions = {
+      from: 'magali.upton8@ethereal.email',
+      to: email,
+      subject: 'Recuperación de clave',
+      text: `Para restablecer tu clave, haz clic en el siguiente enlace: ${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
+    };
+
+    await transporter.sendMail(mailOptions);
 
     res.status(200).json({ message: 'Enlace de recuperación enviado exitosamente' });
   } catch (error) {
     console.error('Error al enviar enlace de recuperación:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/users/reset-password:
+ *   post:
+ *     summary: Restablecer clave
+ *     description: Restablece la clave del usuario utilizando un token de recuperación.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - clave
+ *             properties:
+ *               token:
+ *                 type: string
+ *               clave:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Clave restablecida exitosamente
+ *       400:
+ *         description: Datos incorrectos
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.post('/reset-password', async (req, res) => {
+  const { token, clave } = req.body;
+
+  if (!token || !clave) {
+    return res.status(400).json({ message: 'Todos los campos son requeridos' });
+  }
+
+  try {
+    // Verifica el token de recuperación
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+
+    // Encripta la nueva clave del usuario
+    const hashedPassword = await argon2.hash(clave);
+
+    // Actualiza la clave del usuario en la base de datos
+    await pool.query('UPDATE usuarios SET password = ? WHERE id = ?', [hashedPassword, userId]);
+
+    res.status(200).json({ message: 'Clave restablecida exitosamente' });
+  } catch (error) {
+    console.error('Error al restablecer clave:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 });
