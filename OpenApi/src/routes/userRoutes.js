@@ -32,11 +32,10 @@ const authenticateToken = (req, res, next) => {
     if (err) {
       return res.status(403).json({ message: 'Token no válido' });
     }
-    req.userId = user.userId;
+    req.user = user;
     next();
   });
 };
-
 
 // Middleware para verificar si el cliente está autorizado
 const checkAuthorization = (req, res, next) => {
@@ -247,7 +246,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  *     summary: Actualizar usuario
  *     description: Actualiza los datos de un usuario específico.
  *     security:
- *       - Bearer: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -307,7 +306,7 @@ router.put('/', authenticateToken, async (req, res) => {
  *     summary: Eliminar usuario
  *     description: Elimina un usuario específico.
  *     security:
- *       - Bearer: []
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Usuario eliminado exitosamente
@@ -444,6 +443,81 @@ router.post('/reset-password', checkAuthorization, async (req, res) => {
     res.status(200).json({ message: 'Clave restablecida exitosamente' });
   } catch (error) {
     console.error('Error al restablecer clave:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Listar todos los usuarios con paginación
+ *     description: Obtiene una lista de todos los usuarios con soporte para paginación.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Número de página
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Número de usuarios por página
+ *     responses:
+ *       200:
+ *         description: Lista de usuarios obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 limit:
+ *                   type: integer
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       nombre:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *       401:
+ *         description: Token no proporcionado
+ *       403:
+ *         description: Token no válido
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.get('/', authenticateToken, async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+
+  try {
+    const [rows] = await pool.query('SELECT * FROM usuarios LIMIT ? OFFSET ?', [limit, offset]);
+    const [countRows] = await pool.query('SELECT COUNT(*) as count FROM usuarios');
+    const total = countRows[0].count;
+
+    res.json({
+      total,
+      page,
+      limit,
+      users: rows,
+    });
+  } catch (error) {
+    console.error('Error al listar usuarios:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 });
