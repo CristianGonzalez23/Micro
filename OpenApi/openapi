@@ -153,7 +153,29 @@ paths:
             type: string
       responses:
         '200':
-          description: Información del usuario obtenida exitosamente
+  description: Información del usuario obtenida exitosamente
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          id:
+            type: integer
+            description: ID del usuario
+          nombre:
+            type: string
+            description: Nombre del usuario
+          email:
+            type: string
+            description: Correo electrónico del usuario
+          created_at:
+            type: string
+            format: date-time
+            description: Fecha y hora de creación del usuario
+          updated_at:
+            type: string
+            format: date-time
+            description: Fecha y hora de la última actualización del usuario
        '400':
           description: Error de validación
           content:
@@ -221,7 +243,25 @@ paths:
                 - email
       responses:
         '200':
-          description: Usuario actualizado exitosamente
+         description: Usuario actualizado exitosamente
+         content:
+         application/json:
+      schema:
+        type: object
+        properties:
+          id:
+            type: integer
+            description: ID del usuario
+          nombre:
+            type: string
+            description: Nombre del usuario
+          email:
+            type: string
+            description: Correo electrónico del usuario
+          updated_at:
+            type: string
+            format: date-time
+            description: Fecha y hora de la última actualización del usuario
        '400':
           description: Error de validación
           content:
@@ -272,7 +312,15 @@ paths:
             type: string
       responses:
         '204':
-          description: Usuario eliminado exitosamente
+      description: Usuario eliminado exitosamente
+      content:
+       application/json:
+        schema:
+         type: object
+         properties:
+          message:
+            type: string
+            description: Mensaje de confirmación de eliminación
        '400':
           description: Error de validación
           content:
@@ -329,9 +377,17 @@ paths:
                 - email
                 - clave
       responses:
-        '200':
-          description: Login exitoso, devuelve token
-         
+        
+         '200':
+  description: Login exitoso, devuelve token
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          token:
+            type: string
+            description: Token JWT para autenticación
         '400':
           description: Error de validación
           content:
@@ -386,7 +442,15 @@ paths:
                 - email
      responses:
         '200':
-          description: Instrucciones enviadas para recuperar la clave
+  description: Instrucciones enviadas para recuperar la clave
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          message:
+            type: string
+            description: Mensaje confirmando el envío de las instrucciones para recuperar la clave
         '400':
           description: Error de validación
           content:
