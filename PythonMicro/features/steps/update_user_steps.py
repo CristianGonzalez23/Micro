@@ -1,6 +1,43 @@
 from behave import given, when, then
 import requests
 
+
+# Paso para definir los datos del usuario para crear uno nuevo
+@given('I have user data with name user "{nombre}", email "{email}", password "{clave}"')
+def step_given_user_data(context, nombre, email, clave):
+    context.user_data = {
+        'nombre': nombre,
+        'email': email,
+        'clave': clave
+    }
+
+@when('I check if the users exists and delete')
+def step_when_check_and_delete_user(context):
+    delete_url = f'http://localhost:5000/usuarios/verificar_y_eliminar'
+    response = requests.delete(delete_url, json={'email': context.user_data['email']})
+
+    if response.status_code == 404:
+        print('User does not exist, nothing to delete.')
+    elif response.status_code not in (200, 204):
+        assert False, 'No se pudo eliminar el usuario existente.'
+
+    print(f'Response status code: {response.status_code}')  # Debugging line
+
+# Paso para enviar la solicitud POST
+@when('I send a POST request to "{endpoint}" with user')
+def step_when_send_post_request(context, endpoint):
+    url = f'http://localhost:5000{endpoint}'  # Asegúrate de que la URL sea correcta
+    headers = {'Content-Type': 'application/json'}  # Incluimos los headers manualmente
+    response = requests.post(url, json=context.user_data, headers=headers)  # Asegura el formato JSON
+    context.response = response
+
+# Paso para verificar el código de estado
+@then('the response status code should {status_code:d}')
+def step_then_check_status_code(context, status_code):
+    assert context.response.status_code == status_code, f'Expected status code {status_code}, but got {context.response.status_code}'
+
+
+
 # Paso para iniciar sesión antes de modificar un usuario
 @given('el usuario "{email}" inicia sesión con la contraseña "{clave}" para modificar un usuario')
 def step_impl(context, email, clave):
