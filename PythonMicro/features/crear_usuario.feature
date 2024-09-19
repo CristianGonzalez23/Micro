@@ -10,8 +10,8 @@ Feature: Crear usuario
     And the response body should contain the user ID
 
     Examples:
-      | nombre    | email               | clave     | status_code |
-      | Juan      | juan@example.com    | password1 | 201          |
-      | Ana       | ana@example.com     | password2 | 201          |
-      | Invali | invalidemail.com  | password3 | 400          |
-      | Test User      | user@example.com    | password | 201          |
+      | nombre     | email              | clave     | status_code |
+      | Juan       | juan@example.com   | password1 | 201         |
+      | Ana        | ana@example.com    | password2 | 201         |
+      | Invalido   | invalidemail.com   | password3 | 400         |
+      | Test User  | user@example.com   | password  | 201         |
