@@ -130,15 +130,23 @@ def delete_user(id):
 @app.route('/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
+    
+    # Verificar si los campos obligatorios están presentes
     if 'email' not in data or 'clave' not in data:
         return jsonify({'error': 'Faltan campos'}), 400
 
+    # Buscar el usuario por email
     user = User.query.filter_by(email=data['email']).first()
+    
+    # Verificar la contraseña
     if user and check_password_hash(user.password_hash, data['clave']):
         # Generar el token JWT
         access_token = create_access_token(identity=user.email)
         return jsonify({'token': access_token}), 200
+    
+    # Responder con un error si las credenciales son incorrectas
     return jsonify({'error': 'Credenciales incorrectas'}), 401
+
 
 # Solicitar restablecimiento de contraseña
 @app.route('/auth/reset_password', methods=['POST'])
