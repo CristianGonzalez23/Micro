@@ -195,6 +195,22 @@ def reset_password(token):
     except InvalidTokenError:
         return jsonify({'error': 'Token inválido.'}), 401
 
+# Verificar si el usuario existe y eliminarlo por correo electrónico
+@app.route('/usuarios/verificar_y_eliminar', methods=['DELETE'])
+def verify_and_delete_user_by_email():
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({'error': 'El correo electrónico es obligatorio.'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if user:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'mensaje': 'Usuario eliminado exitosamente.'}), 200  # Código 200 con mensaje
+    return jsonify({'error': 'Usuario no encontrado.'}), 404
+
 
 if __name__ == '__main__':
     with app.app_context():

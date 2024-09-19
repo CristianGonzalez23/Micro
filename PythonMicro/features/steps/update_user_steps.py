@@ -1,7 +1,8 @@
 from behave import given, when, then
 import requests
 
-@given('el usuario "{email}" inicia sesión con la contraseña "{clave}"')
+# Paso para iniciar sesión antes de modificar un usuario
+@given('el usuario "{email}" inicia sesión con la contraseña "{clave}" para modificar un usuario')
 def step_impl(context, email, clave):
     context.user_data = {
         'email': email,
@@ -9,15 +10,15 @@ def step_impl(context, email, clave):
     }
     response = requests.post('http://localhost:5000/auth/login', json=context.user_data)
     context.response = response
-    assert context.response.status_code == 200, 'Login failed'
+    assert context.response.status_code == 200, 'Error al iniciar sesión'
     context.jwt_token = context.response.json()['token']  # Guardar el token
 
-@when('el usuario modifica su información con el nuevo nombre "{new_name}", el nuevo correo "{new_email}" y la nueva contraseña "{new_password}"')
-def step_impl(context, new_name, new_email, new_password):
+# Paso para modificar la información de un usuario
+@when('el usuario modifica la información con el nuevo nombre "{new_name}", el nuevo correo "{new_email}", la nueva contraseña "{new_password}" para el usuario con ID "{user_id}"')
+def step_impl(context, new_name, new_email, new_password, user_id):
     headers = {
         'Authorization': f'Bearer {context.jwt_token}'
     }
-    user_id = 2  # Cambia esto por el ID del usuario que deseas modificar
     response = requests.put(
         f'http://localhost:5000/usuarios/{user_id}',
         json={"nombre": new_name, "email": new_email, "clave": new_password},
@@ -25,19 +26,7 @@ def step_impl(context, new_name, new_email, new_password):
     )
     context.response = response
 
+# Validar que la respuesta sea 200
 @then('la respuesta debe ser 200')
 def step_impl(context):
     assert context.response.status_code == 200, f'Expected 200, but got {context.response.status_code}'
-
-@when('the user modifies their information with the new name "{new_name}" and the new email "{new_email}"')
-def step_impl(context, new_name, new_email):
-    headers = {
-        'Authorization': f'Bearer {context.jwt_token}'
-    }
-    user_id = 2  # Cambia esto por el ID del usuario que deseas modificar
-    response = requests.put(
-        f'http://localhost:5000/usuarios/{user_id}',
-        json={"nombre": new_name, "email": new_email, "clave": context.user_data['clave']},
-        headers=headers
-    )
-    context.response = response
