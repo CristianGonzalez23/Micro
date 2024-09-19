@@ -16,6 +16,18 @@ def step_given_user_data(context, nombre, email, clave):
         'clave': clave
     }
 
+@when('I check if the users exists and delete if necessary')
+def step_when_check_and_delete_user(context):
+    delete_url = f'http://localhost:5000/usuarios/verificar_y_eliminar'
+    response = requests.delete(delete_url, json={'email': context.user_data['email']})
+
+    if response.status_code == 404:
+        print('User does not exist, nothing to delete.')
+    elif response.status_code not in (200, 204):
+        assert False, 'No se pudo eliminar el usuario existente.'
+
+    print(f'Response status code: {response.status_code}')  # Debugging line
+
 # Paso para definir los datos del usuario para iniciar sesión
 @given('I have user data with email "{email}" and password "{clave}"')
 def step_given_user_data_with_email(context, email, clave):
