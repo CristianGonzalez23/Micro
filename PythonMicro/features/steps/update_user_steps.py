@@ -17,7 +17,7 @@ def step_impl(context, new_name, new_email, new_password):
     headers = {
         'Authorization': f'Bearer {context.jwt_token}'
     }
-    user_id = 1  # Cambia esto por el ID del usuario que deseas modificar
+    user_id = 2  # Cambia esto por el ID del usuario que deseas modificar
     response = requests.put(
         f'http://localhost:5000/usuarios/{user_id}',
         json={"nombre": new_name, "email": new_email, "clave": new_password},
@@ -34,7 +34,7 @@ def step_impl(context, new_name, new_email):
     headers = {
         'Authorization': f'Bearer {context.jwt_token}'
     }
-    user_id = 1  # Cambia esto por el ID del usuario que deseas modificar
+    user_id = 2  # Cambia esto por el ID del usuario que deseas modificar
     response = requests.put(
         f'http://localhost:5000/usuarios/{user_id}',
         json={"nombre": new_name, "email": new_email, "clave": context.user_data['clave']},
