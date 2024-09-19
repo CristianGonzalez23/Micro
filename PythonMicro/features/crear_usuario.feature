@@ -14,3 +14,4 @@ Feature: Crear usuario
       | Juan      | juan@example.com    | password1 | 201          |
       | Ana       | ana@example.com     | password2 | 201          |
       | Invali | invalidemail.com  | password3 | 400          |
+      | Test User      | user@example.com    | password | 201          |
