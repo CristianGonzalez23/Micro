@@ -13,4 +13,4 @@ Feature: Crear usuario
       | nombre    | email               | clave     | status_code |
       | Juan      | juan@example.com    | password1 | 201          |
       | Ana       | ana@example.com     | password2 | 201          |
-      | InvalidUser | invalidemail.com  | password3 | 400          |
+      | Invali | invalidemail.com  | password3 | 400          |
