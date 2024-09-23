@@ -1,3 +1,3 @@
 class Config:
-    SQLALCHEMY_DATABASE_URI = 'mysql://testuser:testpassword@localhost/mydatabase'
+    SQLALCHEMY_DATABASE_URI = 'mysql://user:user@localhost:3307/mydatabase'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
