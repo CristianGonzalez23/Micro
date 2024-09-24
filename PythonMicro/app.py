@@ -4,6 +4,7 @@ from models import db, User
 from flask_jwt_extended import (
     JWTManager,
     create_access_token,
+    get_jwt_identity,
     jwt_required,
     decode_token,
 )
@@ -97,12 +98,18 @@ def register_user():
     result, status_code = create_user(data['nombre'], data['email'], password_hash)
     return jsonify(result), status_code
 
-# Actualizar un usuario (JWT requerido)
-@app.route('/usuarios/<int:id>', methods=['PUT'])
+# Actualizar un usuario por correo electrónico (JWT requerido)
+@app.route('/usuarios/actualizar', methods=['PUT'])
 @jwt_required()  # Requiere token válido
-def update_user(id):
+def update_user():
+    current_user_email = get_jwt_identity()  # Obtener el correo del usuario autenticado
     data = request.get_json()
-    user = User.query.get(id)
+    email_to_update = data.get('email')
+
+    if current_user_email != email_to_update:
+        return jsonify({'error': 'No autorizado para actualizar este usuario'}), 403
+
+    user = User.query.filter_by(email=email_to_update).first()
     if user:
         user.username = data.get('nombre', user.username)
         user.email = data.get('email', user.email)
@@ -115,11 +122,19 @@ def update_user(id):
         })
     return jsonify({'error': 'Usuario no encontrado'}), 404
 
-# Eliminar un usuario (JWT requerido)
-@app.route('/usuarios/<int:id>', methods=['DELETE'])
+
+# Eliminar un usuario por correo electrónico (JWT requerido)
+@app.route('/usuarios/eliminar', methods=['DELETE'])
 @jwt_required()  # Requiere token válido
-def delete_user(id):
-    user = User.query.get(id)
+def delete_user():
+    current_user_email = get_jwt_identity()  # Obtener el correo del usuario autenticado
+    data = request.get_json()
+    email_to_delete = data.get('email')
+
+    if current_user_email != email_to_delete:
+        return jsonify({'error': 'No autorizado para eliminar este usuario'}), 403
+
+    user = User.query.filter_by(email=email_to_delete).first()
     if user:
         db.session.delete(user)
         db.session.commit()

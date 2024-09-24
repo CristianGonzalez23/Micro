@@ -14,6 +14,36 @@ components:
       bearerFormat: JWT
 
   schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        nombre:
+          type: string
+        email:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserUpdate:
+      type: object
+      properties:
+        nombre:
+          type: string
+        email:
+          type: string
+
+    UserDelete:
+      type: object
+      properties:
+        email:
+          type: string
+
     ValidationErrorResponse:
       type: object
       properties:
@@ -266,142 +296,79 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+    
+
+    
+
+  /usuarios/actualizar:
     put:
-      summary: Actualizar información de un usuario
+      summary: Actualizar un usuario por correo electrónico
       security:
         - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: ID del usuario
-          schema:
-            type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                nombre:
-                  type: string
-                email:
-                  type: string
-                  format: email
-                clave:
-                  type: string
-              required:
-                - nombre
-                - email
+              $ref: '#/components/schemas/UserUpdate'
       responses:
         '200':
           description: Usuario actualizado exitosamente
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          description: No autorizado para actualizar este usuario
+          content:
+            application/json:
+              schema:
                 type: object
                 properties:
-                  id:
-                    type: integer
-                    description: ID del usuario
-                  nombre:
+                  error:
                     type: string
-                    description: Nombre del usuario
-                  email:
-                    type: string
-                    description: Correo electrónico del usuario
-                  updated_at:
-                    type: string
-                    format: date-time
-                    description: Fecha y hora de la última actualización del usuario
-        '400':
-          description: Error de validación
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-        '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorResponse'
-        '403':
-          description: Acceso prohibido
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ForbiddenErrorResponse'
         '404':
-          description: Recurso no encontrado
+          description: Usuario no encontrado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotFoundErrorResponse'
-        '405':
-          description: Método no permitido
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MethodNotAllowedErrorResponse'
-        '500':
-          description: Error interno del servidor
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  error:
+                    type: string
 
+  /usuarios/eliminar:
     delete:
-      summary: Eliminar un usuario
+      summary: Eliminar un usuario por correo electrónico
       security:
         - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: ID del usuario
-          schema:
-            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDelete'
       responses:
         '204':
           description: Usuario eliminado exitosamente
-        '400':
-          description: Error de validación
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-        '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthorizedErrorResponse'
         '403':
-          description: Acceso prohibido
+          description: No autorizado para eliminar este usuario
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ForbiddenErrorResponse'
+                type: object
+                properties:
+                  error:
+                    type: string
         '404':
-          description: Recurso no encontrado
+          description: Usuario no encontrado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotFoundErrorResponse'
-        '405':
-          description: Método no permitido
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MethodNotAllowedErrorResponse'
-        '500':
-          description: Error interno del servidor
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  error:
+                    type: string
 
   /auth/login:
     post:

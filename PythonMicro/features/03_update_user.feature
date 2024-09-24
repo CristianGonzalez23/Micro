@@ -7,7 +7,7 @@ Feature: Modificación de información del usuario
     And I send a POST request to "/usuarios" with user
     Then the response status code should 201
 
-  Scenario: Modificar información del usuario
-    Given el usuario "ana@example.com" inicia sesión con la contraseña "password2" para modificar un usuario
-    When el usuario modifica la información con el nuevo nombre "Nuevo Nombre", el nuevo correo "nuevo_email@example.com", la nueva contraseña "nueva_contraseña" para el usuario con ID "4"
-    Then la respuesta debe ser 200
+  Scenario: modify user information
+    Given the user "andres@gmail.com" logs in with the password "12345678" to modify a user
+    When the user modifies the information with the new name "New Name" and the new email "new_email@example.com"
+    Then the response should be 200
