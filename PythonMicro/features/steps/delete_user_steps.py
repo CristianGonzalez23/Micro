@@ -1,71 +1,106 @@
+import json
 from behave import given, when, then
 import requests
+import logging
+from jsonschema import validate, ValidationError
+from faker import Faker
 
+# Configura el logging al nivel INFO
+logging.basicConfig(level=logging.INFO)
 
-import requests
-from behave import given, when, then
+# Inicializa Faker
+fake = Faker()
 
-# Paso para definir los datos del usuario para crear uno nuevo
-@given('I have user data for creation with name user "{nombre}", email "{email}", password "{clave}"')
-def step_given_user_data_for_creation(context, nombre, email, clave):
-    context.user_data = {
-        'nombre': nombre,
-        'email': email,
-        'clave': clave
+# Esquema JSON para validar la respuesta de eliminación de usuario
+delete_user_response_schema = {
+    "type": "object",
+    "properties": {
+        "message": {"type": "string"}
+    },
+    "required": ["message"]
+}
+
+def validate_response(response, schema):
+    try:
+        validate(instance=response, schema=schema)
+    except ValidationError as e:
+        return False, str(e)
+    return True, ""
+
+def generate_random_user():
+    return {
+        'nombre': fake.name(),
+        'email': fake.email(),
+        'clave': fake.password()
     }
 
-@when('I check if the user exists and delete for creation')
-def step_when_check_and_delete_user_for_creation(context):
-    delete_url = f'http://localhost:5000/usuarios/verificar_y_eliminar'
-    response = requests.delete(delete_url, json={'email': context.user_data['email']})
+# Paso para definir los datos del usuario para eliminar uno existente
+@given('I have random user data for delete')
+def step_given_random_user_data_for_delete(context):
+    context.user_data = generate_random_user()
+
+@when('I check if the user exists and create if necessary for delete')
+def step_when_check_and_create_user_for_delete(context):
+    check_url = f'http://localhost:5000/usuarios/verificar'
+    response = requests.post(check_url, json={'email': context.user_data['email']})
 
     if response.status_code == 404:
-        print('User does not exist, nothing to delete.')
+        logging.info('User does not exist, creating user.')
+        create_url = f'http://localhost:5000/usuarios'
+        create_response = requests.post(create_url, json=context.user_data)
+        logging.info(f'Create user response status code: {create_response.status_code}')  # Logging create user response status code
+        logging.info(f'Create user response body: {create_response.text}')  # Logging create user response body
+        assert create_response.status_code == 201, 'No se pudo crear el usuario.'
     elif response.status_code not in (200, 204):
-        assert False, 'No se pudo eliminar el usuario existente.'
+        assert False, 'Error al verificar la existencia del usuario.'
 
-    print(f'Response status code: {response.status_code}')  # Debugging line
+    logging.info(f'Response status code: {response.status_code}')  # Debugging line
 
-# Paso para enviar la solicitud POST
-@when('I send a POST request to "{endpoint}" with user for creation')
-def step_when_send_post_request_for_creation(context, endpoint):
+@when('I obtain a JWT token for the user to delete')
+def step_when_obtain_jwt_token_for_delete(context):
+    login_url = 'http://localhost:5000/auth/login'
+    login_data = {
+        'email': context.user_data['email'],
+        'clave': context.user_data['clave']
+    }
+    response = requests.post(login_url, json=login_data)
+    logging.info(f'Login response status code: {response.status_code}')  # Logging login response status code
+    logging.info(f'Login response body: {response.text}')  # Logging login response body
+    assert response.status_code == 200, 'No se pudo obtener el token JWT.'
+    context.jwt_token = response.json()['token']
+
+# Paso para enviar la solicitud DELETE para eliminar el usuario
+@when('I send a DELETE request to "{endpoint}" with user data')
+def step_when_send_delete_request(context, endpoint):
     url = f'http://localhost:5000{endpoint}'  # Asegúrate de que la URL sea correcta
-    headers = {'Content-Type': 'application/json'}  # Incluimos los headers manualmente
-    response = requests.post(url, json=context.user_data, headers=headers)  # Asegura el formato JSON
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {context.jwt_token}'  # Incluimos el token JWT en el encabezado
+    }
+    logging.info(f'Sending DELETE request to URL: {url} with data: {context.user_data}')  # Logging URL and data
+    response = requests.delete(url, json=context.user_data, headers=headers)  # Asegura el formato JSON
+    logging.info(f'Response status code: {response.status_code}')  # Logging response status code
+    logging.info(f'Response body: {response.text}')  # Logging response body
     context.response = response
 
 # Paso para verificar el código de estado
-@then('the response status code for creation should be {status_code:d}')
-def step_then_check_status_code_for_creation(context, status_code):
+@then('the response status code should be {status_code:d}')
+def step_then_check_status_code(context, status_code):
+    logging.info(f'Response status code: {context.response.status_code}')  # Logging response status code
     assert context.response.status_code == status_code, f'Expected status code {status_code}, but got {context.response.status_code}'
 
+# Paso para verificar el esquema de la respuesta
+@then('the response body should match the delete user schema')
+def step_then_check_delete_user_schema(context):
+    if context.response.status_code == 204:
+        logging.info('No content in response, as expected for status code 204.')
+        return
 
-# Paso para iniciar sesión antes de eliminar un usuario
-@given('the user "{email}" logs in with the password "{clave}" to delete a user')
-def step_given_user_logs_in_to_delete(context, email, clave):
-    context.user_data = {
-        'email': email,
-        'clave': clave
-    }
-    response = requests.post('http://localhost:5000/auth/login', json=context.user_data)
-    context.response = response
-    assert context.response.status_code == 200, 'Error al iniciar sesión'
-    context.jwt_token = context.response.json()['token']  # Guardar el token
-
-# Paso para eliminar un usuario
-@when('the user delete user for email')
-def step_when_user_deletes_account(context):
-    headers = {
-        'Authorization': f'Bearer {context.jwt_token}'
-    }
-    response = requests.delete(
-        'http://localhost:5000/usuarios/eliminar',
-        headers=headers,
-        json={'email': context.user_data['email']}
-    )
-    context.response = response
-
-# Validar que la respuesta sea 204
-@then('the response should be 204')
-def step_then_response_should_be_204(context):
-    assert context.response.status_code == 204, f'Expected 204, but got {context.response.status_code}'
+    response_data = context.response.json()
+    
+    # Validar la respuesta con el esquema
+    is_valid, error_message = validate_response(response_data, delete_user_response_schema)
+    assert is_valid, f"Response validation failed: {error_message}"
+    
+    # Utiliza logging en lugar de print para asegurar que se muestre en la salida de Behave
+    logging.info(f'Response data: {response_data}')

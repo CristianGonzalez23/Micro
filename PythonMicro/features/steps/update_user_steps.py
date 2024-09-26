@@ -1,71 +1,105 @@
+import json
 from behave import given, when, then
 import requests
+import logging
+from jsonschema import validate, ValidationError
+from faker import Faker
 
+# Configura el logging al nivel INFO
+logging.basicConfig(level=logging.INFO)
 
-# Paso para definir los datos del usuario para crear uno nuevo
-@given('I have user data with name user "{nombre}", email "{email}", password "{clave}"')
-def step_given_user_data(context, nombre, email, clave):
-    context.user_data = {
-        'nombre': nombre,
-        'email': email,
-        'clave': clave
+# Inicializa Faker
+fake = Faker()
+
+# Esquema JSON para validar la respuesta de actualización de usuario
+update_user_response_schema = {
+    "type": "object",
+    "properties": {
+        "id": {"type": "integer"},
+        "nombre": {"type": "string"},
+        "email": {"type": "string"},
+        "updated_at": {"type": "string"}
+    },
+    "required": ["id", "nombre", "email", "updated_at"]
+}
+
+def validate_response(response, schema):
+    try:
+        validate(instance=response, schema=schema)
+    except ValidationError as e:
+        return False, str(e)
+    return True, ""
+
+def generate_random_user():
+    return {
+        'nombre': fake.name(),
+        'email': fake.email(),
+        'clave': fake.password()
     }
 
-@when('I check if the users exists and delete')
-def step_when_check_and_delete_user(context):
-    delete_url = f'http://localhost:5000/usuarios/verificar_y_eliminar'
-    response = requests.delete(delete_url, json={'email': context.user_data['email']})
+# Paso para definir los datos del usuario para actualizar uno existente
+@given('I have random user data for update')
+def step_given_random_user_data_for_update(context):
+    context.user_data = generate_random_user()
+
+@when('I check if the user exists and create if necessary for update')
+def step_when_check_and_create_user_for_update(context):
+    check_url = f'http://localhost:5000/usuarios/verificar'
+    response = requests.post(check_url, json={'email': context.user_data['email']})
 
     if response.status_code == 404:
-        print('User does not exist, nothing to delete.')
+        logging.info('User does not exist, creating user.')
+        create_url = f'http://localhost:5000/usuarios'
+        create_response = requests.post(create_url, json=context.user_data)
+        logging.info(f'Create user response status code: {create_response.status_code}')  # Logging create user response status code
+        logging.info(f'Create user response body: {create_response.text}')  # Logging create user response body
+        assert create_response.status_code == 201, 'No se pudo crear el usuario.'
     elif response.status_code not in (200, 204):
-        assert False, 'No se pudo eliminar el usuario existente.'
+        assert False, 'Error al verificar la existencia del usuario.'
 
-    print(f'Response status code: {response.status_code}')  # Debugging line
+    logging.info(f'Response status code: {response.status_code}')  # Debugging line
 
-# Paso para enviar la solicitud POST
-@when('I send a POST request to "{endpoint}" with user')
-def step_when_send_post_request(context, endpoint):
+@when('I obtain a JWT token for the user')
+def step_when_obtain_jwt_token(context):
+    login_url = 'http://localhost:5000/auth/login'
+    login_data = {
+        'email': context.user_data['email'],
+        'clave': context.user_data['clave']
+    }
+    response = requests.post(login_url, json=login_data)
+    logging.info(f'Login response status code: {response.status_code}')  # Logging login response status code
+    logging.info(f'Login response body: {response.text}')  # Logging login response body
+    assert response.status_code == 200, 'No se pudo obtener el token JWT.'
+    context.jwt_token = response.json()['token']
+
+# Paso para enviar la solicitud PUT para actualizar el usuario
+@when('I send a PUT request to "{endpoint}" with user data')
+def step_when_send_put_request(context, endpoint):
     url = f'http://localhost:5000{endpoint}'  # Asegúrate de que la URL sea correcta
-    headers = {'Content-Type': 'application/json'}  # Incluimos los headers manualmente
-    response = requests.post(url, json=context.user_data, headers=headers)  # Asegura el formato JSON
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {context.jwt_token}'  # Incluimos el token JWT en el encabezado
+    }
+    logging.info(f'Sending PUT request to URL: {url} with data: {context.user_data}')  # Logging URL and data
+    response = requests.put(url, json=context.user_data, headers=headers)  # Asegura el formato JSON
+    logging.info(f'Response status code: {response.status_code}')  # Logging response status code
+    logging.info(f'Response body: {response.text}')  # Logging response body
     context.response = response
 
 # Paso para verificar el código de estado
-@then('the response status code should {status_code:d}')
+@then('the response status code should be {status_code:d}')
 def step_then_check_status_code(context, status_code):
+    logging.info(f'Response status code: {context.response.status_code}')  # Logging response status code
     assert context.response.status_code == status_code, f'Expected status code {status_code}, but got {context.response.status_code}'
 
-
-
-# Paso para iniciar sesión antes de modificar un usuario
-@given('the user "{email}" logs in with the password "{clave}" to modify a user')
-def step_given_user_logs_in_to_modify(context, email, clave):
-    context.user_data = {
-        'email': email,
-        'clave': clave
-    }
-    response = requests.post('http://localhost:5000/auth/login', json=context.user_data)
-    context.response = response
-    if response.status_code != 200:
-        print(f'Error al iniciar sesión: {response.status_code} - {response.text}')  # Línea de depuración
-    assert response.status_code == 200, 'Error al iniciar sesión'
-    context.jwt_token = response.json()['token']  # Guardar el token
-
-# Paso para modificar la información de un usuario
-@when('the user modifies the information with the new name "{new_name}" and the new email "{new_email}"')
-def step_when_user_modifies_information(context, new_name, new_email):
-    headers = {
-        'Authorization': f'Bearer {context.jwt_token}'
-    }
-    response = requests.put(
-        'http://localhost:5000/usuarios/actualizar',
-        json={"nombre": new_name, "email": new_email, "email": context.user_data['email']},
-        headers=headers
-    )
-    context.response = response
-
-# Validar que la respuesta sea 200
-@then('the response should be 200')
-def step_then_response_should_be_200(context):
-    assert context.response.status_code == 200, f'Expected 200, but got {context.response.status_code}'
+# Paso para verificar el esquema de la respuesta
+@then('the response body should match the update user schema')
+def step_then_check_update_user_schema(context):
+    response_data = context.response.json()
+    
+    # Validar la respuesta con el esquema
+    is_valid, error_message = validate_response(response_data, update_user_response_schema)
+    assert is_valid, f"Response validation failed: {error_message}"
+    
+    # Utiliza logging en lugar de print para asegurar que se muestre en la salida de Behave
+    logging.info(f'Response data: {response_data}')

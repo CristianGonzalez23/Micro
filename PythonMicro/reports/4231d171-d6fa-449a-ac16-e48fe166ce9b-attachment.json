@@ -1,4 +1,0 @@
-{
-  "mensaje": "Se ha enviado un enlace para restablecer la contrase\u00f1a al correo electr\u00f3nico proporcionado.",
-  "token para restablecer contrase\u00f1a": "http://localhost:5000/auth/reset_password/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcyNzI2NDY5MSwianRpIjoiZTU1MDE0OGMtNGU0Yi00MWI5LTkzM2YtYzg4N2IwMDdjNGM1IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6InVzdWFyaW9AZXhhbXBsZS5jb20iLCJuYmYiOjE3MjcyNjQ2OTEsImNzcmYiOiI0YjcyMjk5Ny01YTAwLTQ5N2YtOTgzMC1iNTNlOTBmNTQxMjYiLCJleHAiOjE3MjcyNjY0OTF9.V1TNNY8TLjbkwm2j746ECh8pA1yQzb06dymZ077eujU"
-}

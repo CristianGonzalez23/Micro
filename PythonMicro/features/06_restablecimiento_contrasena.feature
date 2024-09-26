@@ -1,7 +1,11 @@
-Feature: Restablecimiento de contraseña
+Feature: Restablecimiento de Contraseña
+  Como un usuario
+  Quiero poder restablecer mi contraseña
+  Para poder acceder a mi cuenta si olvido mi contraseña
 
-  Scenario: Restablecer contraseña para un usuario, creando uno nuevo si no existe
-    Given el correo "usuario@example.com" puede no existir en el sistema
-    When el usuario solicita restablecer la contraseña para "usuario@example.com"
-    Then si el usuario no existe, el sistema lo crea con el correo "usuario@example.com"
-    And el sistema envía un enlace de restablecimiento al correo "usuario@example.com"
+  Scenario: Solicitar y restablecer la contraseña con un correo aleatorio
+    Given un correo aleatorio puede no existir en el sistema
+    When el usuario solicita restablecer la contraseña
+    Then la respuesta debe indicar que se ha enviado un correo de restablecimiento
+    When el usuario restablece la contraseña usando el token
+    Then la respuesta debe indicar que la contraseña ha sido restablecida exitosamente
