@@ -13,6 +13,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import timedelta  # Importar timedelta correctamente
 from sqlalchemy.exc import IntegrityError
+import pika
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -235,7 +236,37 @@ def verify_and_delete_user_by_email():
     return jsonify({'error': 'Usuario no encontrado.'}), 404
 
 
+
+def connect_to_rabbitmq():
+    credentials = pika.PlainCredentials('user', 'password')
+    parameters = pika.ConnectionParameters('rabbitmq', 5672, '/', credentials)
+    connection = pika.BlockingConnection(parameters)
+    channel = connection.channel()
+    return channel
+
+# Uso de la conexión
+channel = connect_to_rabbitmq()
+channel.queue_declare(queue='hello')
+
+# Publicar un mensaje
+channel.basic_publish(exchange='', routing_key='hello', body='Hello World!')
+print(" [x] Sent 'Hello World!'")
+
+import logging
+from logstash_formatter import LogstashFormatterV1
+
+# Configuración de logging
+logger = logging.getLogger('logstash-logger')
+logger.setLevel(logging.INFO)
+logstash_handler = logging.StreamHandler()
+logstash_handler.setFormatter(LogstashFormatterV1())
+logger.addHandler(logstash_handler)
+
+# Ejemplo de uso de logging
+logger.info('Aplicación iniciada')
+
+# Tu código existente...
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()  # Crea las tablas antes de ejecutar la aplicación
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000,debug=True)
