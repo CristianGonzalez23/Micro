@@ -8,11 +8,13 @@ from flask_jwt_extended import (
     jwt_required,
     decode_token,
 )
-from jwt.exceptions import ExpiredSignatureError, InvalidTokenError  # Importar desde jwt.exceptions
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import timedelta  # Importar timedelta correctamente
+from datetime import timedelta
 from sqlalchemy.exc import IntegrityError
+import logging
+from logstash_formatter import LogstashFormatterV1
 import pika
 
 app = Flask(__name__)
@@ -24,20 +26,23 @@ jwt = JWTManager(app)
 
 db.init_app(app)
 
-# Ruta para la documentación de Swagger
-SWAGGER_URL = '/swagger'  # Ruta donde se visualizará Swagger UI
-API_URL = '/static/swagger.yaml'  # Ruta del archivo swagger.yaml
+# Configuración de logging
+logger = logging.getLogger('logstash-logger')
+logger.setLevel(logging.INFO)
+logstash_handler = logging.StreamHandler()
+logstash_handler.setFormatter(LogstashFormatterV1())
+logger.addHandler(logstash_handler)
 
-# Configurar Swagger UI blueprint
+# Ruta para la documentación de Swagger
+SWAGGER_URL = '/swagger'
+API_URL = '/static/swagger.yaml'
+
 swaggerui_blueprint = get_swaggerui_blueprint(
-    SWAGGER_URL,            # URL para acceder a Swagger UI
-    API_URL,                # Ruta del archivo YAML
-    config={                # Configuraciones opcionales
-        'app_name': "API de Usuarios"
-    }
+    SWAGGER_URL,
+    API_URL,
+    config={'app_name': "API de Usuarios"}
 )
 
-# Registrar Swagger en la app Flask
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 # Función para crear un nuevo usuario
@@ -46,23 +51,24 @@ def create_user(username, email, password_hash):
     try:
         db.session.add(new_user)
         db.session.commit()
+        logger.info(f'Usuario creado: {username}')
         return {"id": new_user.id, "nombre": new_user.username, "email": new_user.email}, 201
     except IntegrityError as e:
-        db.session.rollback()  # Deshacer los cambios en caso de error
+        db.session.rollback()
         if 'unique constraint' in str(e.orig):
-            return {"error": "El usuario ya existe."}, 409  # Mensaje personalizado
-        return {"error": "Error al crear el usuario."}, 500  # Mensaje genérico
+            return {"error": "El usuario ya existe."}, 400
+        return {"error": "Error al crear el usuario."}, 500
     finally:
         db.session.close()
 
-# Definición de rutas de la API
 @app.route('/usuarios/', methods=['GET'])
-@jwt_required()  # Requiere token válido
+@jwt_required()
 def get_users():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     users = User.query.paginate(page=page, per_page=limit, error_out=False).items
     total = User.query.count()
+    logger.info(f'Usuarios obtenidos: página {page}, límite {limit}')
     return jsonify({
         'total': total,
         'page': page,
@@ -70,12 +76,12 @@ def get_users():
         'users': [{'id': user.id, 'nombre': user.username, 'email': user.email} for user in users]
     })
 
-# Obtener un usuario específico por su ID (JWT requerido)
 @app.route('/usuarios/<int:id>', methods=['GET'])
-@jwt_required()  # Requiere token válido
+@jwt_required()
 def get_user(id):
     user = User.query.get(id)
     if user:
+        logger.info(f'Usuario obtenido: {user.username}')
         return jsonify({
             'id': user.id,
             'nombre': user.username,
@@ -83,88 +89,77 @@ def get_user(id):
             'created_at': user.created_at,
             'updated_at': user.updated_at
         })
+    logger.warning(f'Usuario no encontrado: ID {id}')
     return jsonify({'error': 'Usuario no encontrado'}), 404
 
-# Crear un nuevo usuario
 @app.route('/usuarios/', methods=['POST'])
 def register_user():
     data = request.get_json()
     if 'nombre' not in data or 'email' not in data or 'clave' not in data:
-        return jsonify({'error': 'Campos obligatorios faltantes'}), 400
+        return jsonify({'error': 'Faltan datos obligatorios.'}), 400
 
-    # Generar el hash de la contraseña
     password_hash = generate_password_hash(data['clave'])
-
-    # Llamar a la función create_user
     result, status_code = create_user(data['nombre'], data['email'], password_hash)
     return jsonify(result), status_code
 
-# Actualizar un usuario por correo electrónico (JWT requerido)
 @app.route('/usuarios/actualizar', methods=['PUT'])
-@jwt_required()  # Requiere token válido
+@jwt_required()
 def update_user():
-    current_user_email = get_jwt_identity()  # Obtener el correo del usuario autenticado
+    current_user_email = get_jwt_identity()
     data = request.get_json()
     email_to_update = data.get('email')
 
     if current_user_email != email_to_update:
-        return jsonify({'error': 'No autorizado para actualizar este usuario'}), 403
+        return jsonify({'error': 'No autorizado para actualizar este usuario.'}), 403
 
     user = User.query.filter_by(email=email_to_update).first()
     if user:
         user.username = data.get('nombre', user.username)
         user.email = data.get('email', user.email)
         db.session.commit()
+        logger.info(f'Usuario actualizado: {user.username}')
         return jsonify({
             'id': user.id,
             'nombre': user.username,
             'email': user.email,
             'updated_at': user.updated_at
         })
+    logger.warning(f'Usuario no encontrado para actualizar: {email_to_update}')
     return jsonify({'error': 'Usuario no encontrado'}), 404
 
-
-# Eliminar un usuario por correo electrónico (JWT requerido)
 @app.route('/usuarios/eliminar', methods=['DELETE'])
-@jwt_required()  # Requiere token válido
+@jwt_required()
 def delete_user():
-    current_user_email = get_jwt_identity()  # Obtener el correo del usuario autenticado
+    current_user_email = get_jwt_identity()
     data = request.get_json()
     email_to_delete = data.get('email')
 
     if current_user_email != email_to_delete:
-        return jsonify({'error': 'No autorizado para eliminar este usuario'}), 403
+        return jsonify({'error': 'No autorizado para eliminar este usuario.'}), 403
 
     user = User.query.filter_by(email=email_to_delete).first()
     if user:
         db.session.delete(user)
         db.session.commit()
-        return '', 204  # Código 204 sin contenido
+        logger.info(f'Usuario eliminado: {user.username}')
+        return jsonify({'mensaje': 'Usuario eliminado exitosamente.'}), 200
+    logger.warning(f'Usuario no encontrado para eliminar: {email_to_delete}')
     return jsonify({'error': 'Usuario no encontrado'}), 404
 
-# Inicio de sesión y generación de JWT
 @app.route('/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
-    
-    # Verificar si los campos obligatorios están presentes
     if 'email' not in data or 'clave' not in data:
-        return jsonify({'error': 'Faltan campos'}), 400
+        return jsonify({'error': 'Faltan datos obligatorios.'}), 400
 
-    # Buscar el usuario por email
     user = User.query.filter_by(email=data['email']).first()
-    
-    # Verificar la contraseña
     if user and check_password_hash(user.password_hash, data['clave']):
-        # Generar el token JWT
         access_token = create_access_token(identity=user.email)
-        return jsonify({'token': access_token}), 200
-    
-    # Responder con un error si las credenciales son incorrectas
-    return jsonify({'error': 'Credenciales incorrectas'}), 401
+        logger.info(f'Usuario autenticado: {user.username}')
+        return jsonify(access_token=access_token), 200
+    logger.warning(f'Credenciales incorrectas para: {data["email"]}')
+    return jsonify({'error': 'Credenciales incorrectas.'}), 401
 
-
-# Solicitar restablecimiento de contraseña
 @app.route('/auth/reset_password', methods=['POST'])
 def request_password_reset():
     data = request.get_json()
@@ -174,52 +169,37 @@ def request_password_reset():
         return jsonify({'error': 'El correo electrónico es obligatorio.'}), 400
 
     user = User.query.filter_by(email=email).first()
-
     if user:
-        # Crear token de restablecimiento de contraseña (válido por 30 minutos)
-        expires = timedelta(minutes=30)  # Corregido timedelta
-        reset_token = create_access_token(identity=user.email, expires_delta=expires)
-        
-        # Aquí debes enviar el correo con el token
-        # Enviar enlace por correo (omitido aquí)
-        reset_link = f"http://localhost:5000/auth/reset_password/{reset_token}"
-        print(f"Enviar este enlace para restablecer la contraseña: {reset_link}")
-
-        return jsonify({
-            'mensaje': 'Se ha enviado un enlace para restablecer la contraseña al correo electrónico proporcionado.',
-            'token para restablecer contraseña': reset_link  # Incluir el reset_link en la respuesta
-        }), 200
-    else:
-        return jsonify({'error': 'El usuario no existe.'}), 404
+        # Aquí iría la lógica para enviar el correo de restablecimiento
+        logger.info(f'Solicitud de restablecimiento de contraseña para: {email}')
+        return jsonify({'mensaje': 'Solicitud de restablecimiento enviada.'}), 200
+    logger.warning(f'Correo no encontrado para restablecimiento: {email}')
+    return jsonify({'error': 'Correo no encontrado.'}), 404
 
 @app.route('/auth/reset_password/<string:token>', methods=['POST'])
 def reset_password(token):
     data = request.get_json()
     new_password = data.get('new_password')
 
-    # Verificar que new_password no sea None
     if new_password is None:
         return jsonify({'error': 'La nueva contraseña es obligatoria.'}), 400
 
     try:
-        # Decodificar el token usando la clave secreta de JWT
-        decoded = decode_token(token)
-        user = User.query.filter_by(email=decoded['sub']).first()
-
+        decoded_token = decode_token(token)
+        user_email = decoded_token['sub']
+        user = User.query.filter_by(email=user_email).first()
         if user:
-            # Actualizar la contraseña con el nuevo valor
-            user.password_hash = generate_password_hash(new_password)  # Aquí se generará el hash
+            user.password_hash = generate_password_hash(new_password)
             db.session.commit()
+            logger.info(f'Contraseña restablecida para: {user.username}')
             return jsonify({'mensaje': 'Contraseña restablecida exitosamente.'}), 200
-        else:
-            return jsonify({'error': 'Usuario no encontrado.'}), 404
-
     except ExpiredSignatureError:
+        logger.warning('Token de restablecimiento expirado.')
         return jsonify({'error': 'El token ha expirado.'}), 400
     except InvalidTokenError:
+        logger.warning('Token de restablecimiento inválido.')
         return jsonify({'error': 'Token inválido.'}), 401
 
-# Verificar si el usuario existe y eliminarlo por correo electrónico
 @app.route('/usuarios/verificar_y_eliminar', methods=['DELETE'])
 def verify_and_delete_user_by_email():
     data = request.get_json()
@@ -232,41 +212,35 @@ def verify_and_delete_user_by_email():
     if user:
         db.session.delete(user)
         db.session.commit()
-        return jsonify({'mensaje': 'Usuario eliminado exitosamente.'}), 200  # Código 200 con mensaje
+        logger.info(f'Usuario verificado y eliminado: {user.username}')
+        return jsonify({'mensaje': 'Usuario eliminado exitosamente.'}), 200
+    logger.warning(f'Usuario no encontrado para verificar y eliminar: {email}')
     return jsonify({'error': 'Usuario no encontrado.'}), 404
 
+import time
 
+def connect_to_rabbitmq(retries=5, delay=5):
+    for attempt in range(retries):
+        try:
+            credentials = pika.PlainCredentials('user', 'password')
+            parameters = pika.ConnectionParameters('rabbitmq', 5672, '/', credentials)
+            connection = pika.BlockingConnection(parameters)
+            channel = connection.channel()
+            return channel
+        except pika.exceptions.AMQPConnectionError as e:
+            logger.error(f'Error al conectar con RabbitMQ: {e}. Intento {attempt + 1} de {retries}')
+            time.sleep(delay)
+    return None
 
-def connect_to_rabbitmq():
-    credentials = pika.PlainCredentials('user', 'password')
-    parameters = pika.ConnectionParameters('rabbitmq', 5672, '/', credentials)
-    connection = pika.BlockingConnection(parameters)
-    channel = connection.channel()
-    return channel
-
-# Uso de la conexión
 channel = connect_to_rabbitmq()
-channel.queue_declare(queue='hello')
+if channel:
+    channel.queue_declare(queue='hello')
+    channel.basic_publish(exchange='', routing_key='hello', body='Hello World!')
+    logger.info(" [x] Sent 'Hello World!'")
+else:
+    logger.error("No se pudo establecer la conexión con RabbitMQ")
 
-# Publicar un mensaje
-channel.basic_publish(exchange='', routing_key='hello', body='Hello World!')
-print(" [x] Sent 'Hello World!'")
-
-import logging
-from logstash_formatter import LogstashFormatterV1
-
-# Configuración de logging
-logger = logging.getLogger('logstash-logger')
-logger.setLevel(logging.INFO)
-logstash_handler = logging.StreamHandler()
-logstash_handler.setFormatter(LogstashFormatterV1())
-logger.addHandler(logstash_handler)
-
-# Ejemplo de uso de logging
-logger.info('Aplicación iniciada')
-
-# Tu código existente...
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()  # Crea las tablas antes de ejecutar la aplicación
-    app.run(host='0.0.0.0', port=5000,debug=True)
+        db.create_all()
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -68,13 +68,7 @@ services:
     depends_on:
       - elasticsearch
 
-  tests:
-    build: .
-    container_name: python_tests
-    depends_on:
-      - app
-      - elasticsearch
-    command: ["pytest", "test_logs.py"]
+ 
 
 volumes:
   db_data:
