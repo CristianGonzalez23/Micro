@@ -68,8 +68,6 @@ services:
     depends_on:
       - elasticsearch
 
- 
-
 volumes:
   db_data:
   rabbitmq_data:
