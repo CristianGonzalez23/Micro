@@ -68,7 +68,19 @@ services:
     depends_on:
       - elasticsearch
 
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins  # Usar el Dockerfile personalizado
+    container_name: jenkins
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+
 volumes:
   db_data:
   rabbitmq_data:
   es_data:
+  jenkins_home:

@@ -122,6 +122,31 @@ def get_user(id):
         })
     logger.warning(f'User not found: ID {id}')
     return jsonify({'error': 'User not found'}), 404
+@app.route('/usuarios/', methods=['GET'])
+@jwt_required()
+def list_users():
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    
+    users = User.query.paginate(page=page, per_page=limit, error_out=False)
+    total = users.total
+    users_list = [{
+        'id': user.id,
+        'nombre': user.username,
+        'email': user.email,
+        'created_at': user.created_at,
+        'updated_at': user.updated_at
+    } for user in users.items]
+    
+    logger.info(f'Users listed: Page {page}, Limit {limit}')
+    send_to_rabbitmq(f"Users listed: Page {page}, Limit {limit}")
+    
+    return jsonify({
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'users': users_list
+    }), 200
 
 @app.route('/usuarios/actualizar', methods=['PUT'])
 @jwt_required()
