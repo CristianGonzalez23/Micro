@@ -79,6 +79,18 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
 
+  notification_service:  # Ahora dentro de services
+    build:
+      context: ./notification_service
+    container_name: notification_service
+    ports:
+      - "5005:5005"
+    environment:
+      - SMTP_SERVER=smtp.gmail.com
+      - SMTP_PORT=587
+      - EMAIL=cristianr.gonzalezi@uqvirtual.edu.co
+      - PASSWORD=Crisgonza_20
+
 volumes:
   db_data:
   rabbitmq_data:

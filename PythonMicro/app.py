@@ -18,13 +18,15 @@ from logstash_formatter import LogstashFormatterV1
 import pika
 import time
 import socket
+import smtplib
 from logging.handlers import SocketHandler
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
 # JWT configuration
-app.config['JWT_SECRET_KEY'] = 'super-secret-key'  # Change this to a more secure key
+app.config['JWT_SECRET_KEY'] = 'super-secret-key'  # Cambia esto a una clave más segura
 jwt = JWTManager(app)
 
 db.init_app(app)
@@ -35,7 +37,6 @@ logger.setLevel(logging.INFO)
 
 logstash_handler = SocketHandler('logstash', 5044)
 logstash_handler.setFormatter(LogstashFormatterV1())
-
 logger.addHandler(logstash_handler)
 
 # Swagger documentation route
@@ -76,6 +77,29 @@ def send_to_rabbitmq(message):
         channel.basic_publish(exchange='', routing_key='hello', body=message)
         logger.info(f"[x] Sent to RabbitMQ: {message}")
 
+# Email notification function
+def send_email_notification(to_email, subject, body):
+    try:
+        msg = MIMEText(body)
+        msg['Subject'] = subject
+        msg['From'] = 'cristianr.gonzalezi@uqvirtual.edu.co'
+        msg['To'] = to_email
+
+        smtp_server = "smtp.gmail.com"
+        smtp_port = 587
+        from_email = "cristianr.gonzalezi@uqvirtual.edu.co"
+        password = "Crisgonza_20"
+
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(from_email, password)
+            server.sendmail(from_email, to_email, msg.as_string())
+
+        logger.info(f'Email sent to: {to_email}')
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {e}")
+
+
 # Function to create a new user
 def create_user(username, email, password_hash):
     new_user = User(username=username, email=email, password_hash=password_hash)
@@ -83,7 +107,17 @@ def create_user(username, email, password_hash):
         db.session.add(new_user)
         db.session.commit()
         logger.info(f'User created: {username}')
+        
+        # Send RabbitMQ message
         send_to_rabbitmq(f"User created: {username}, Email: {email}")
+        
+        # Send email notification
+        send_email_notification(
+            to_email=email,
+            subject="Bienvenido a la plataforma",
+            body=f"Hola {username}, tu usuario ha sido creado con éxito."
+        )
+
         return {"id": new_user.id, "name": new_user.username, "email": new_user.email}, 201
     except IntegrityError as e:
         db.session.rollback()
@@ -122,6 +156,7 @@ def get_user(id):
         })
     logger.warning(f'User not found: ID {id}')
     return jsonify({'error': 'User not found'}), 404
+
 @app.route('/usuarios/', methods=['GET'])
 @jwt_required()
 def list_users():
@@ -164,6 +199,14 @@ def update_user():
         user.email = data.get('email', user.email)
         db.session.commit()
         logger.info(f'User updated: {user.username}')
+        
+        # Send email notification
+        send_email_notification(
+            to_email=email_to_update,
+            subject="Actualización de perfil",
+            body=f"Hola {user.username}, tu perfil ha sido actualizado."
+        )
+        
         send_to_rabbitmq(f"User updated: {user.username}, Email: {user.email}")
         return jsonify({
             'id': user.id,
@@ -189,6 +232,14 @@ def delete_user():
         db.session.delete(user)
         db.session.commit()
         logger.info(f'User deleted: {user.username}')
+        
+        # Send email notification
+        send_email_notification(
+            to_email=email_to_delete,
+            subject="Cuenta eliminada",
+            body=f"Hola {user.username}, tu cuenta ha sido eliminada."
+        )
+        
         send_to_rabbitmq(f"User deleted: {user.username}, Email: {user.email}")
         return jsonify({'message': 'User successfully deleted.'}), 200
     logger.warning(f'User not found for deletion: {email_to_delete}')
@@ -204,72 +255,16 @@ def login():
     if user and check_password_hash(user.password_hash, data['clave']):
         access_token = create_access_token(identity=user.email)
         logger.info(f'User authenticated: {user.username}')
+        
+        send_email_notification(
+            to_email=user.email,
+            subject="Inicio de sesión",
+            body=f"Hola {user.username}, has iniciado sesión exitosamente."
+        )
+        
         send_to_rabbitmq(f"User logged in: {user.username}, Email: {user.email}")
-        return jsonify(access_token=access_token), 200
-    logger.warning(f'Incorrect credentials for: {data["email"]}')
-    return jsonify({'error': 'Incorrect credentials.'}), 401
-
-@app.route('/auth/reset_password', methods=['POST'])
-def request_password_reset():
-    data = request.get_json()
-    email = data.get('email')
-
-
-
-    if not email:
-        return jsonify({'error': 'Email is required.'}), 400
-
-    user = User.query.filter_by(email=email).first()
-    if user:
-        # Logic for sending reset email would go here
-        logger.info(f'Password reset request for: {email}')
-        send_to_rabbitmq(f"Password reset requested: {user.username}, Email: {email}")
-        return jsonify({'message': 'Reset request sent.'}), 200
-    logger.warning(f'Email not found for reset: {email}')
-    return jsonify({'error': 'Email not found.'}), 404
-
-@app.route('/auth/reset_password/<string:token>', methods=['POST'])
-def reset_password(token):
-    data = request.get_json()
-    new_password = data.get('new_password')
-
-    if new_password is None:
-        return jsonify({'error': 'New password is required.'}), 400
-
-    try:
-        decoded_token = decode_token(token)
-        user_email = decoded_token['sub']
-        user = User.query.filter_by(email=user_email).first()
-        if user:
-            user.password_hash = generate_password_hash(new_password)
-            db.session.commit()
-            logger.info(f'Password reset for: {user.username}')
-            send_to_rabbitmq(f"Password reset completed: {user.username}, Email: {user_email}")
-            return jsonify({'message': 'Password successfully reset.'}), 200
-    except ExpiredSignatureError:
-        logger.warning('Expired reset token.')
-        return jsonify({'error': 'Token has expired.'}), 400
-    except InvalidTokenError:
-        logger.warning('Invalid reset token.')
-        return jsonify({'error': 'Invalid token.'}), 401
-
-@app.route('/usuarios/verificar_y_eliminar', methods=['DELETE'])
-def verify_and_delete_user_by_email():
-    data = request.get_json()
-    email = data.get('email')
-
-    if not email:
-        return jsonify({'error': 'Email is required.'}), 400
-
-    user = User.query.filter_by(email=email).first()
-    if user:
-        db.session.delete(user)
-        db.session.commit()
-        logger.info(f'User verified and deleted: {user.username}')
-        send_to_rabbitmq(f"User verified and deleted: {user.username}, Email: {email}")
-        return jsonify({'message': 'User successfully deleted.'}), 200
-    logger.warning(f'User not found for verification and deletion: {email}')
-    return jsonify({'error': 'User not found.'}), 404
+        return jsonify({'token': access_token}), 200
+    return jsonify({'error': 'Invalid credentials.'}), 401
 
 if __name__ == '__main__':
     with app.app_context():
