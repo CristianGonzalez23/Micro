@@ -12,7 +12,7 @@ services:
       - logstash
       - elasticsearch
     environment:
-      - MYSQL_HOST=db
+      - MYSQL=db
       - MYSQL_USER=root
       - MYSQL_PASSWORD=rootpassword
       - MYSQL_DB=mydatabase
@@ -79,7 +79,7 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
 
-  notification_service:  # Ahora dentro de services
+  notification_service:
     build:
       context: ./notification_service
     container_name: notification_service
@@ -91,8 +91,35 @@ services:
       - EMAIL=cristianr.gonzalezi@uqvirtual.edu.co
       - PASSWORD=Crisgonza_20
 
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - notification_service
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    ports:
+      - "9093:9093"
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   db_data:
   rabbitmq_data:
   es_data:
   jenkins_home:
+  grafana_data:

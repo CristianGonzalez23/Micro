@@ -16,3 +16,4 @@ logstash-formatter
 gunicorn
 flask-migrate
 flask-script
+flask-cors

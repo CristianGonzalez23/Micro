@@ -21,9 +21,13 @@ import socket
 import smtplib
 from logging.handlers import SocketHandler
 from email.mime.text import MIMEText
+from flask_cors import CORS  # Importar flask-cors
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Habilitar CORS
+CORS(app)
 
 # JWT configuration
 app.config['JWT_SECRET_KEY'] = 'super-secret-key'  # Cambia esto a una clave más segura
