@@ -214,6 +214,8 @@ def request_password_reset():
     data = request.get_json()
     email = data.get('email')
 
+
+
     if not email:
         return jsonify({'error': 'Email is required.'}), 400
 
