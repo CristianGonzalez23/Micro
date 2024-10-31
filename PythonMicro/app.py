@@ -270,6 +270,14 @@ def login():
         return jsonify({'token': access_token}), 200
     return jsonify({'error': 'Invalid credentials.'}), 401
 
+# Endpoint para Prometheus /metrics en formato de texto
+@app.route('/metrics', methods=['GET'])
+def metrics():
+    # Ejemplo de métrica básica que se puede monitorear
+
+    metrics_text = f"# HELP notifications_count Número de notificaciones\n# TYPE notifications_count gauge\n "
+    return metrics_text, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

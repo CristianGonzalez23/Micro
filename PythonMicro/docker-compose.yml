@@ -12,12 +12,15 @@ services:
       - logstash
       - elasticsearch
     environment:
-      - MYSQL=db
       - MYSQL_USER=root
       - MYSQL_PASSWORD=rootpassword
       - MYSQL_DB=mydatabase
+      - MYSQL_HOST=mysql_db
+      - MYSQL_PORT=3306
     volumes:
       - ./static:/app/static  # Montar el directorio estático para Swagger
+    networks:
+      - my_network
 
   db:
     image: mysql:5.7
@@ -29,6 +32,22 @@ services:
       - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
+    networks:
+      - my_network
+
+  mysqld_exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: mysqld_exporter
+    environment:
+      DATA_SOURCE_NAME: "root:rootpassword@tcp(mysql_db:3306)/mydatabase"
+    ports:
+      - "9104:9104"
+    depends_on:
+      - db
+    volumes:
+      - ./my.cnf:/root/.my.cnf
+    networks:
+      - my_network
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -41,6 +60,8 @@ services:
       - RABBITMQ_DEFAULT_PASS=password
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - my_network
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
@@ -51,6 +72,8 @@ services:
       - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    networks:
+      - my_network
 
   logstash:
     image: docker.elastic.co/logstash/logstash:7.10.1
@@ -59,6 +82,8 @@ services:
       - "5044:5044"
     volumes:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    networks:
+      - my_network
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.10.1
@@ -67,6 +92,8 @@ services:
       - "5601:5601"
     depends_on:
       - elasticsearch
+    networks:
+      - my_network
 
   jenkins:
     build:
@@ -78,6 +105,8 @@ services:
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
+    networks:
+      - my_network
 
   notification_service:
     build:
@@ -90,6 +119,8 @@ services:
       - SMTP_PORT=587
       - EMAIL=cristianr.gonzalezi@uqvirtual.edu.co
       - PASSWORD=Crisgonza_20
+    networks:
+      - my_network
 
   prometheus:
     image: prom/prometheus
@@ -100,6 +131,8 @@ services:
       - "9090:9090"
     depends_on:
       - notification_service
+    networks:
+      - my_network
 
   alertmanager:
     image: prom/alertmanager
@@ -108,6 +141,8 @@ services:
       - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
     ports:
       - "9093:9093"
+    networks:
+      - my_network
 
   grafana:
     image: grafana/grafana
@@ -116,6 +151,8 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
+    networks:
+      - my_network
 
 volumes:
   db_data:
@@ -123,3 +160,7 @@ volumes:
   es_data:
   jenkins_home:
   grafana_data:
+
+networks:
+  my_network:
+    driver: bridge

@@ -1,15 +1,10 @@
 global:
-  resolve_timeout: 5m
+  resolve_timeout: 1h
 
 route:
-  receiver: 'email'
+  receiver: 'python-webhook'
 
 receivers:
-  - name: 'email'
-    email_configs:
-      - to: 'cristianr.gonzalezi@uqvirtual.edu.co'
-        from: 'alertmanager@example.com'
-        smarthost: 'smtp.gmail.com:587'
-        auth_username: 'cristianr.gonzalezi@uqvirtual.edu.co'
-        auth_password: 'Crisgonza_20'
-        auth_identity: 'cristianr.gonzalezi@uqvirtual.edu.co'
+- name: 'python-webhook'
+  webhook_configs:
+  - url: 'http://notification_service:5005/alert'
