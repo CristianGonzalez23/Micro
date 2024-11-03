@@ -1,5 +1,5 @@
 global:
-  resolve_timeout: 1h
+  resolve_timeout: 15s
 
 route:
   receiver: 'python-webhook'

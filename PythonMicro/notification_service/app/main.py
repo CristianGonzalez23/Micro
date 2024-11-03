@@ -69,7 +69,7 @@ def send_email_notification(to_email, subject, body):
 async def receive_alert(request: Request):
     alert = await request.json()
     for alert in alert['alerts']:
-        email = "djgortegaro@gmail.com"  # Cambia esto al correo electrónico del destinatario
+        email = "cristian.gon1414@gmail.com"  # Cambia esto al correo electrónico del destinatario
         subject = f"Alerta: Alert Notification"
         body = f"description: {alert['annotations']['description']}\n" \
                f"summary: {alert['annotations']['summary']}\n"
