@@ -1,16 +1,46 @@
 version: '3.8'
 
 services:
+  kong:
+    image: kong:latest
+    container_name: kong
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /usr/local/kong/declarative/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+    ports:
+      - "8000:8000"  # Proxy de Kong
+      - "8001:8001"  # Administración de Kong
+    volumes:
+      - ./kong.yml:/usr/local/kong/declarative/kong.yml
+    networks:
+      my_network:
+        ipv4_address: 172.18.0.10
+
+  # Servicio de Konga
+  konga:
+    image: pantsel/konga:latest
+    container_name: konga
+    environment:
+      - "KONG_ADMIN_URL=http://kong:8001"  # URL de administración de Kong
+    ports:
+      - "1337:1337"  # Puerto para acceder a Konga
+    depends_on:
+      - kong  # Asegurarse de que Kong esté levantado antes de iniciar Konga
+    networks:
+      my_network:
+        ipv4_address: 172.18.0.22
+
   app:
     build: .
     container_name: python_app
     ports:
       - "5000:5000"
-    depends_on:
-      - db
-      - rabbitmq
-      - logstash
-      - elasticsearch
     environment:
       - MYSQL_USER=root
       - MYSQL_PASSWORD=rootpassword
@@ -18,9 +48,10 @@ services:
       - MYSQL_HOST=mysql_db
       - MYSQL_PORT=3306
     volumes:
-      - ./static:/app/static  # Montar el directorio estático para Swagger
+      - ./static:/app/static
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.11
 
   db:
     image: mysql:5.7
@@ -33,35 +64,23 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     networks:
-      - my_network
-
-  mysqld_exporter:
-    image: prom/mysqld-exporter:latest
-    container_name: mysqld_exporter
-    environment:
-      DATA_SOURCE_NAME: "root:rootpassword@tcp(mysql_db:3306)/mydatabase"
-    ports:
-      - "9104:9104"
-    depends_on:
-      - db
-    volumes:
-      - ./my.cnf:/root/.my.cnf
-    networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.12
 
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
-      - "5672:5672"  # RabbitMQ broker port
-      - "15672:15672"  # RabbitMQ management UI port
+      - "5672:5672"
+      - "15672:15672"
     environment:
       - RABBITMQ_DEFAULT_USER=user
       - RABBITMQ_DEFAULT_PASS=password
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.13
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
@@ -73,7 +92,8 @@ services:
     volumes:
       - es_data:/usr/share/elasticsearch/data
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.14
 
   logstash:
     image: docker.elastic.co/logstash/logstash:7.10.1
@@ -83,7 +103,8 @@ services:
     volumes:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.15
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.10.1
@@ -93,20 +114,22 @@ services:
     depends_on:
       - elasticsearch
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.16
 
   jenkins:
     build:
       context: .
-      dockerfile: Dockerfile.jenkins  # Usar el Dockerfile personalizado
+      dockerfile: Dockerfile.jenkins
     container_name: jenkins
     ports:
-      - "8080:8080"
+      - "8085:8080"
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.17
 
   notification_service:
     build:
@@ -120,7 +143,8 @@ services:
       - EMAIL=cristianr.gonzalezi@uqvirtual.edu.co
       - PASSWORD=Crisgonza_20
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.18
 
   prometheus:
     image: prom/prometheus
@@ -133,7 +157,8 @@ services:
     depends_on:
       - notification_service
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.19
 
   alertmanager:
     image: prom/alertmanager
@@ -143,7 +168,8 @@ services:
     ports:
       - "9093:9093"
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.20
 
   grafana:
     image: grafana/grafana
@@ -153,7 +179,15 @@ services:
     depends_on:
       - prometheus
     networks:
-      - my_network
+      my_network:
+        ipv4_address: 172.18.0.21
+
+networks:
+  my_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
 
 volumes:
   db_data:
@@ -161,7 +195,3 @@ volumes:
   es_data:
   jenkins_home:
   grafana_data:
-
-networks:
-  my_network:
-    driver: bridge

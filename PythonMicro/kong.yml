@@ -1,0 +1,33 @@
+_format_version: "2.1"
+services:
+  - name: user-api
+    url: http://usuario-api:5000  # La URL de tu aplicación Flask
+    routes:
+      - name: user-api-route
+        paths:
+          - /usuarios
+        strip_path: true
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+        plugins:
+          - name: jwt  # Habilitar autenticación JWT si es necesario
+            config:
+              secret_is_base64: false
+              header_names:
+                - Authorization
+              claims_to_verify:
+                - exp
+
+  - name: auth-service
+    url: http://auth-service:5000  # URL de la API de autenticación
+    routes:
+      - name: auth-login-route
+        paths:
+          - /auth/login
+        methods:
+          - POST
+        strip_path: true
+
