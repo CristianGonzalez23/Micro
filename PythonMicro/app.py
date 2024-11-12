@@ -22,6 +22,7 @@ import smtplib
 from logging.handlers import SocketHandler
 from email.mime.text import MIMEText
 from flask_cors import CORS  # Importar flask-cors
+from flask_migrate import Migrate  # Importar Flask-Migrate
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -34,6 +35,8 @@ app.config['JWT_SECRET_KEY'] = 'super-secret-key'  # Cambia esto a una clave má
 jwt = JWTManager(app)
 
 db.init_app(app)
+migrate = Migrate(app, db)  # Configurar Flask-Migrate
+
 
 # Logging configuration
 logger = logging.getLogger('python-logger')
@@ -76,10 +79,15 @@ def connect_to_rabbitmq(retries=5, delay=5):
     return rabbitmq_channel
 
 def send_to_rabbitmq(message):
-    channel = connect_to_rabbitmq()
-    if channel:
-        channel.basic_publish(exchange='', routing_key='hello', body=message)
+    global rabbitmq_channel
+    try:
+        if rabbitmq_channel is None or rabbitmq_channel.is_closed:
+            rabbitmq_channel = connect_to_rabbitmq()
+        rabbitmq_channel.basic_publish(exchange='', routing_key='hello', body=message)
         logger.info(f"[x] Sent to RabbitMQ: {message}")
+    except pika.exceptions.AMQPConnectionError as e:
+        logger.error(f"Failed to send message to RabbitMQ: {e}")
+        rabbitmq_channel = None  # Reset the channel to force reconnection
 
 # Email notification function
 def send_email_notification(to_email, subject, body):
@@ -103,23 +111,34 @@ def send_email_notification(to_email, subject, body):
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {e}")
 
-
 # Function to create a new user
-def create_user(username, email, password_hash):
-    new_user = User(username=username, email=email, password_hash=password_hash)
+def create_user(data):
+    new_user = User(
+        username=data['nombre'],
+        email=data['email'],
+        password_hash=generate_password_hash(data['clave']),
+        personal_page=data.get('personal_page'),
+        nickname=data.get('nickname'),
+        contact_public=data.get('contact_public', False),
+        address=data.get('address'),
+        biography=data.get('biography'),
+        organization=data.get('organization'),
+        country=data.get('country'),
+        social_links=data.get('social_links')
+    )
     try:
         db.session.add(new_user)
         db.session.commit()
-        logger.info(f'User created: {username}')
+        logger.info(f'User created: {new_user.username}')
         
         # Send RabbitMQ message
-        send_to_rabbitmq(f"User created: {username}, Email: {email}")
+        send_to_rabbitmq(f"User created: {new_user.username}, Email: {new_user.email}")
         
         # Send email notification
         send_email_notification(
-            to_email=email,
+            to_email=new_user.email,
             subject="Bienvenido a la plataforma",
-            body=f"Hola {username}, tu usuario ha sido creado con éxito."
+            body=f"Hola {new_user.username}, tu usuario ha sido creado con éxito."
         )
 
         return {"id": new_user.id, "name": new_user.username, "email": new_user.email}, 201
@@ -134,11 +153,11 @@ def create_user(username, email, password_hash):
 @app.route('/usuarios/', methods=['POST'])
 def register_user():
     data = request.get_json()
-    if 'nombre' not in data or 'email' not in data or 'clave' not in data:
+    required_fields = ['nombre', 'email', 'clave']
+    if not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required data.'}), 400
 
-    password_hash = generate_password_hash(data['clave'])
-    result, status_code = create_user(data['nombre'], data['email'], password_hash)
+    result, status_code = create_user(data)
     
     send_to_rabbitmq(f"User registered: {data['nombre']}, Email: {data['email']}")
     
@@ -155,6 +174,14 @@ def get_user(id):
             'id': user.id,
             'nombre': user.username,
             'email': user.email,
+            'personal_page': user.personal_page,
+            'nickname': user.nickname,
+            'contact_public': user.contact_public,
+            'address': user.address,
+            'biography': user.biography,
+            'organization': user.organization,
+            'country': user.country,
+            'social_links': user.social_links,
             'created_at': user.created_at,
             'updated_at': user.updated_at
         })
@@ -173,6 +200,14 @@ def list_users():
         'id': user.id,
         'nombre': user.username,
         'email': user.email,
+        'personal_page': user.personal_page,
+        'nickname': user.nickname,
+        'contact_public': user.contact_public,
+        'address': user.address,
+        'biography': user.biography,
+        'organization': user.organization,
+        'country': user.country,
+        'social_links': user.social_links,
         'created_at': user.created_at,
         'updated_at': user.updated_at
     } for user in users.items]
@@ -201,6 +236,14 @@ def update_user():
     if user:
         user.username = data.get('nombre', user.username)
         user.email = data.get('email', user.email)
+        user.personal_page = data.get('personal_page', user.personal_page)
+        user.nickname = data.get('nickname', user.nickname)
+        user.contact_public = data.get('contact_public', user.contact_public)
+        user.address = data.get('address', user.address)
+        user.biography = data.get('biography', user.biography)
+        user.organization = data.get('organization', user.organization)
+        user.country = data.get('country', user.country)
+        user.social_links = data.get('social_links', user.social_links)
         db.session.commit()
         logger.info(f'User updated: {user.username}')
         
@@ -216,6 +259,14 @@ def update_user():
             'id': user.id,
             'nombre': user.username,
             'email': user.email,
+            'personal_page': user.personal_page,
+            'nickname': user.nickname,
+            'contact_public': user.contact_public,
+            'address': user.address,
+            'biography': user.biography,
+            'organization': user.organization,
+            'country': user.country,
+            'social_links': user.social_links,
             'updated_at': user.updated_at
         })
     logger.warning(f'User not found for update: {email_to_update}')
@@ -270,13 +321,59 @@ def login():
         return jsonify({'token': access_token}), 200
     return jsonify({'error': 'Invalid credentials.'}), 401
 
+@app.route('/auth/reset_password', methods=['POST'])
+def request_password_reset():
+    data = request.get_json()
+    if 'email' not in data:
+        return jsonify({'error': 'Missing required data.'}), 400
+
+    user = User.query.filter_by(email=data['email']).first()
+    if user:
+        reset_token = create_access_token(identity=user.email, expires_delta=timedelta(hours=1))
+        reset_link = f"http://localhost:5000/auth/reset_password/{reset_token}"
+        
+        send_email_notification(
+            to_email=user.email,
+            subject="Restablecimiento de contraseña",
+            body=f"Hola {user.username}, usa el siguiente enlace para restablecer tu contraseña: {reset_link}"
+        )
+        
+        logger.info(f'Password reset requested for: {user.username}')
+        send_to_rabbitmq(f"Password reset requested for: {user.username}, Email: {user.email}")
+        
+        return jsonify({'message': 'Password reset link sent to your email.'}), 200
+    return jsonify({'error': 'User not found.'}), 404
+
+@app.route('/auth/reset_password/<token>', methods=['POST'])
+def reset_password(token):
+    try:
+        decoded_token = decode_token(token)
+        email = decoded_token['sub']
+    except (ExpiredSignatureError, InvalidTokenError):
+        return jsonify({'error': 'Invalid or expired token.'}), 401
+
+    data = request.get_json()
+    if 'clave' not in data:
+        return jsonify({'error': 'Missing required data.'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.password_hash = generate_password_hash(data['clave'])
+        db.session.commit()
+        
+        logger.info(f'Password reset for: {user.username}')
+        send_to_rabbitmq(f"Password reset for: {user.username}, Email: {user.email}")
+        
+        return jsonify({'message': 'Password reset successfully.'}), 200
+    return jsonify({'error': 'User not found.'}), 404
+
 # Endpoint para Prometheus /metrics en formato de texto
 @app.route('/metrics', methods=['GET'])
 def metrics():
     # Ejemplo de métrica básica que se puede monitorear
 
     metrics_text = f"# HELP notifications_count Número de notificaciones\n# TYPE notifications_count gauge\n "
-    return metrics_text, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+    return metrics_text, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 if __name__ == '__main__':
     with app.app_context():
