@@ -181,6 +181,19 @@ services:
     networks:
       my_network:
         ipv4_address: 172.18.0.21
+  
+  profile_service:
+    build: ./profile_service
+    depends_on:
+      - mysql_db
+    ports:
+      - "8086:8086"
+    environment:
+      - DB_HOST=mysql_db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=mydatabase
 
 networks:
   my_network:
@@ -188,6 +201,7 @@ networks:
     ipam:
       config:
         - subnet: 172.18.0.0/16
+
 
 volumes:
   db_data:
