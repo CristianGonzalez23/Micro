@@ -1,0 +1,194 @@
+openapi: 3.0.0
+info:
+  title: Profile Service API
+  description: API para gestionar el perfil de usuario, incluyendo actualización, eliminación y visualización de perfil.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8086
+    description: Servidor local
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+        personal_page:
+          type: string
+        nickname:
+          type: string
+        contact_public:
+          type: boolean
+        address:
+          type: string
+        biography:
+          type: string
+        organization:
+          type: string
+        country:
+          type: string
+        social_links:
+          type: object
+    UpdateProfileRequest:
+      type: object
+      properties:
+        personal_page:
+          type: string
+        nickname:
+          type: string
+        contact_public:
+          type: boolean
+        address:
+          type: string
+        biography:
+          type: string
+        organization:
+          type: string
+        country:
+          type: string
+        social_links:
+          type: object
+
+paths:
+  /user/profile:
+    get:
+      summary: Mostrar perfil de usuario
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: email
+          required: true
+          schema:
+            type: string
+          description: El correo electrónico del usuario
+      responses:
+        '200':
+          description: Perfil de usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Email no proporcionado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '401':
+          description: Token requerido o inválido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+    put:
+      summary: Actualizar perfil de usuario
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: email
+          required: true
+          schema:
+            type: string
+          description: El correo electrónico del usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Perfil actualizado con éxito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Token requerido o inválido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+    delete:
+      summary: Eliminar perfil de usuario
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: email
+          required: true
+          schema:
+            type: string
+          description: El correo electrónico del usuario
+      responses:
+        '200':
+          description: Usuario eliminado con éxito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Token requerido o inválido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string

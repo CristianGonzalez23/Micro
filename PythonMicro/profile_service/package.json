@@ -1,0 +1,22 @@
+{
+  "name": "profile_service",
+  "version": "1.0.0",
+  "main": "app.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node app.mjs"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.4",
+    "scrypt-kdf": "^3.0.0",
+    "sequelize": "^6.37.5",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
+  }
+}

@@ -7,6 +7,7 @@ from flask_jwt_extended import (
     get_jwt_identity,
     jwt_required,
     decode_token,
+    verify_jwt_in_request
 )
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from flask_swagger_ui import get_swaggerui_blueprint
@@ -132,7 +133,7 @@ def create_user(data):
         logger.info(f'User created: {new_user.username}')
         
         # Send RabbitMQ message
-        send_to_rabbitmq(f"User created: {new_user.username}, Email: {new_user.email}")
+        send_to_rabbitmq(f"User created: {new_user.username}, Email: {new_user.email} ")
         
         # Send email notification
         send_email_notification(
@@ -308,13 +309,15 @@ def login():
 
     user = User.query.filter_by(email=data['email']).first()
     if user and check_password_hash(user.password_hash, data['clave']):
-        access_token = create_access_token(identity=user.email)
+        # Incluir el correo electrónico en el token
+        access_token = create_access_token(identity={'email': user.email})
         logger.info(f'User authenticated: {user.username}')
         
+        # Enviar notificación por correo electrónico con el token en el cuerpo
         send_email_notification(
             to_email=user.email,
             subject="Inicio de sesión",
-            body=f"Hola {user.username}, has iniciado sesión exitosamente."
+            body=f"Hola {user.username}, has iniciado sesión exitosamente.\n\nTu token de acceso es: **{access_token}**"
         )
         
         send_to_rabbitmq(f"User logged in: {user.username}, Email: {user.email}")
@@ -374,6 +377,21 @@ def metrics():
 
     metrics_text = f"# HELP notifications_count Número de notificaciones\n# TYPE notifications_count gauge\n "
     return metrics_text, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+@app.route('/verify_token', methods=['POST'])
+def verify_token():
+    data = request.get_json()
+    token = data.get('token')
+
+    try:
+        decoded_token = decode_token(token)
+        return jsonify({'valid': True}), 200
+    except (ExpiredSignatureError, InvalidTokenError):
+        return jsonify({'valid': False}), 401
+
+
+
+
 
 if __name__ == '__main__':
     with app.app_context():

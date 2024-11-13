@@ -53,3 +53,11 @@ scrape_configs:
   - job_name: 'grafana'
     static_configs:
       - targets: ['grafana:3000']
+
+  - job_name: 'profile_service'
+    static_configs:
+      - targets: ['profile_service:8086']
+  
+  - job_name: 'konga'
+    static_configs:
+      - targets: ['konga:1337']

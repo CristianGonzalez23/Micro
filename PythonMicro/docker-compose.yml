@@ -98,10 +98,12 @@ services:
   logstash:
     image: docker.elastic.co/logstash/logstash:7.10.1
     container_name: logstash
-    ports:
-      - "5044:5044"
     volumes:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    ports:
+      - "5044:5044"
+    depends_on:
+      - elasticsearch
     networks:
       my_network:
         ipv4_address: 172.18.0.15
@@ -109,6 +111,8 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:7.10.1
     container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
       - "5601:5601"
     depends_on:
@@ -181,19 +185,28 @@ services:
     networks:
       my_network:
         ipv4_address: 172.18.0.21
-  
+
   profile_service:
-    build: ./profile_service
-    depends_on:
-      - mysql_db
-    ports:
-      - "8086:8086"
-    environment:
-      - DB_HOST=mysql_db
-      - DB_PORT=3306
-      - DB_USER=root
-      - DB_PASSWORD=rootpassword
-      - DB_NAME=mydatabase
+      build: 
+        context: ./profile_service
+        dockerfile: Dockerfile
+      depends_on:
+        - db
+      ports:
+        - "8086:8086"
+      environment:
+        - DB_HOST=mysql_db
+        - DB_PORT=3306
+        - DB_USER=root
+        - DB_PASSWORD=rootpassword
+        - DB_NAME=mydatabase  
+        - FLASK_ENV=development
+      volumes:
+      - ./profile_service:/app
+      networks:
+        my_network:
+          ipv4_address: 172.18.0.23
+ 
 
 networks:
   my_network:
