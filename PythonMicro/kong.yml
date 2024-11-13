@@ -1,28 +1,7 @@
 _format_version: "2.1"
 services:
-  - name: user-api
-    url: http://usuario-api:5000  # La URL de tu aplicación Flask
-    routes:
-      - name: user-api-route
-        paths:
-          - /usuarios
-        strip_path: true
-        methods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-        plugins:
-          - name: jwt  # Habilitar autenticación JWT si es necesario
-            config:
-              secret_is_base64: false
-              header_names:
-                - Authorization
-              claims_to_verify:
-                - exp
-
   - name: auth-service
-    url: http://auth-service:5000  # URL de la API de autenticación
+    url: http://python_app:5000
     routes:
       - name: auth-login-route
         paths:
@@ -30,4 +9,42 @@ services:
         methods:
           - POST
         strip_path: true
+      - name: auth-register-route
+        paths:
+          - /auth/register
+        methods:
+          - POST
+        strip_path: true
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          header_names:
+            - Authorization
+          claims_to_verify:
+            - exp
 
+  - name: user-profile-service
+    url: http://profile-service:8086
+    routes:
+      - name: user-profile-route
+        paths:
+          - /user/profile
+        methods:
+          - GET
+          - PUT
+        strip_path: true
+      - name: user-delete-route
+        paths:
+          - /user/delete
+        methods:
+          - DELETE
+        strip_path: true
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          header_names:
+            - Authorization
+          claims_to_verify:
+            - exp

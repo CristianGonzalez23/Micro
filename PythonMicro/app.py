@@ -23,7 +23,7 @@ import smtplib
 from logging.handlers import SocketHandler
 from email.mime.text import MIMEText
 from flask_cors import CORS  # Importar flask-cors
-from flask_migrate import Migrate  # Importar Flask-Migrate
+from flask_migrate import Migrate  # type: ignore # Importar Flask-Migrate
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -159,9 +159,7 @@ def register_user():
         return jsonify({'error': 'Missing required data.'}), 400
 
     result, status_code = create_user(data)
-    
     send_to_rabbitmq(f"User registered: {data['nombre']}, Email: {data['email']}")
-    
     return jsonify(result), status_code
 
 @app.route('/usuarios/<int:id>', methods=['GET'])
@@ -309,20 +307,17 @@ def login():
 
     user = User.query.filter_by(email=data['email']).first()
     if user and check_password_hash(user.password_hash, data['clave']):
-        # Incluir el correo electrónico en el token
         access_token = create_access_token(identity={'email': user.email})
         logger.info(f'User authenticated: {user.username}')
-        
-        # Enviar notificación por correo electrónico con el token en el cuerpo
         send_email_notification(
             to_email=user.email,
             subject="Inicio de sesión",
             body=f"Hola {user.username}, has iniciado sesión exitosamente.\n\nTu token de acceso es: **{access_token}**"
         )
-        
         send_to_rabbitmq(f"User logged in: {user.username}, Email: {user.email}")
         return jsonify({'token': access_token}), 200
     return jsonify({'error': 'Invalid credentials.'}), 401
+
 
 @app.route('/auth/reset_password', methods=['POST'])
 def request_password_reset():
